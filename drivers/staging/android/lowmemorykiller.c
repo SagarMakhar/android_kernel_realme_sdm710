@@ -49,7 +49,6 @@
 #include <linux/cpuset.h>
 #include <linux/vmpressure.h>
 #include <linux/freezer.h>
-
 #define CREATE_TRACE_POINTS
 #include <trace/events/almk.h>
 #include <linux/show_mem_notifier.h>
@@ -62,6 +61,7 @@
 
 #define CREATE_TRACE_POINTS
 #include "trace/lowmemorykiller.h"
+
 
 /* to enable lowmemorykiller */
 static int enable_lmk = 1;
@@ -134,6 +134,7 @@ enum {
 	VMPRESSURE_ADJUST_NORMAL,
 };
 
+
 static int adjust_minadj(short *min_score_adj)
 {
 	int ret = VMPRESSURE_NO_ADJUST;
@@ -148,7 +149,7 @@ static int adjust_minadj(short *min_score_adj)
 		else
 			ret = VMPRESSURE_ADJUST_NORMAL;
 		*min_score_adj = adj_max_shift;
-	}
+        }
 	atomic_set(&shift_adj, 0);
 
 	return ret;
@@ -169,7 +170,6 @@ static int lmk_vmpressure_notifier(struct notifier_block *nb,
 			global_node_page_state(NR_SHMEM) -
 			total_swapcache_pages();
 		other_free = global_page_state(NR_FREE_PAGES);
-
 		atomic_set(&shift_adj, 1);
 		trace_almk_vmpressure(pressure, other_free, other_file);
 	} else if (pressure >= 90) {
@@ -434,6 +434,7 @@ void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
 	}
 }
 
+
 static void mark_lmk_victim(struct task_struct *tsk)
 {
 	struct mm_struct *mm = tsk->mm;
@@ -647,11 +648,13 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	return rem;
 }
 
+
 static struct shrinker lowmem_shrinker = {
 	.scan_objects = lowmem_scan,
 	.count_objects = lowmem_count,
 	.seeks = DEFAULT_SEEKS * 16
 };
+
 
 static int __init lowmem_init(void)
 {

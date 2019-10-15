@@ -973,6 +973,7 @@ static int handle_uaudio_stream_req(void *req_h, void *req)
 	u8 pcm_card_num, pcm_dev_num, direction;
 	int info_idx = -EINVAL, ret = 0;
 
+
 	req_msg = (struct qmi_uaudio_stream_req_msg_v01 *)req;
 
 	if (!req_msg->audio_format_valid || !req_msg->bit_rate_valid ||

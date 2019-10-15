@@ -34,6 +34,7 @@
 #include "kgsl_trace.h"
 #include "kgsl_pwrctrl.h"
 
+
 #define CP_APERTURE_REG	0
 #define CP_SMMU_APERTURE_ID 0x1B
 

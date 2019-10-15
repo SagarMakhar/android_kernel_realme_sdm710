@@ -1859,6 +1859,16 @@ static void complete_crtc_signaling(struct drm_device *dev,
 	kfree(fence_state);
 }
 
+#ifdef VENDOR_EDIT
+//cuixiaogang@SRC.hypnus.2018.04.03. add support to get frame count
+static u64 frame_cnt;
+u64 get_frame_cnt(void)
+{
+   return frame_cnt;
+}
+EXPORT_SYMBOL(get_frame_cnt);
+#endif /* VENDOR_EDIT */
+
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
@@ -2024,6 +2034,11 @@ out:
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+
+#ifdef VENDOR_EDIT
+//cuixiaogang@SRC.hypnus.2018.04.03. add support to get frame count
+	frame_cnt++;
+#endif /* VENDOR_EDIT */
 
 	return ret;
 }

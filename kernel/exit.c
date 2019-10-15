@@ -63,6 +63,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
 	nr_threads--;
@@ -341,6 +342,7 @@ static bool has_stopped_jobs(struct pid *pgrp)
 
 	return false;
 }
+
 
 /*
  * Check to see if any process groups have become orphaned as
@@ -740,11 +742,13 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
+
 void __noreturn do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
 	TASKS_RCU(int tasks_rcu_i);
+
 
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
@@ -777,7 +781,8 @@ void __noreturn do_exit(long code)
 #ifdef CONFIG_PANIC_ON_RECURSIVE_FAULT
 		panic("Recursive fault!\n");
 #else
-		pr_alert("Fixing recursive fault but reboot is needed!\n");
+       		pr_alert("Fixing recursive fault but reboot is needed!\n");
+
 #endif
 		/*
 		 * We can do this unlocked here. The futex code uses

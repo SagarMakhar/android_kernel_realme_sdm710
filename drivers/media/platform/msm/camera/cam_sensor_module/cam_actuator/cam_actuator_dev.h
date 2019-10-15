@@ -124,6 +124,12 @@ struct cam_actuator_ctrl_t {
 	struct cam_actuator_query_cap act_info;
 	struct intf_params bridge_intf;
 	char device_name[20];
+#ifdef VENDOR_EDIT
+	/*Modified by Yingpiao.Lin@Cam.Drv, 20180717, for iris flow*/
+	struct cam_actuator_ctrl_t *piris_ctrl;
+	/*Added by Zhengrong.Zhang@Cam.Drv, 2018/11/08, for update ak7374 PID*/
+	uint8_t is_check_firmware_update;
+#endif
 };
 
 #endif /* _CAM_ACTUATOR_DEV_H_ */

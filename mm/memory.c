@@ -944,6 +944,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	int progress = 0;
 	int rss[NR_MM_COUNTERS];
 	unsigned long orig_addr = addr;
+
 	swp_entry_t entry = (swp_entry_t){0};
 
 again:

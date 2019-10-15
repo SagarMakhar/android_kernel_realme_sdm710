@@ -28,6 +28,7 @@
 
 #define MMC_AUTOSUSPEND_DELAY_MS	3000
 
+
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned int	old_rate;       /* saved clock rate */

@@ -292,6 +292,10 @@ EXPORT_SYMBOL(dev_trans_start);
 static void dev_watchdog(unsigned long arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
+#ifdef VENDOR_EDIT
+/* Fuchun.Liao@BSP.CHG.Basic 2019/03/14 modify for del warning to avoid hang */
+	static bool print_once = false;
+#endif /* VENDOR_EDIT */
 
 	netif_tx_lock(dev);
 	if (!qdisc_tx_is_noop(dev)) {
@@ -317,8 +321,17 @@ static void dev_watchdog(unsigned long arg)
 			}
 
 			if (some_queue_timedout) {
+#ifndef VENDOR_EDIT
+/* Fuchun.Liao@BSP.CHG.Basic 2019/03/14 modify for del warning to avoid hang */
 				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
 				       dev->name, netdev_drivername(dev), i);
+#else
+				if (print_once == false) {
+					print_once = true;
+					pr_err("NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
+				       dev->name, netdev_drivername(dev), i);
+				}
+#endif /* VENDOR_EDIT */
 				dev->netdev_ops->ndo_tx_timeout(dev);
 			}
 			if (!mod_timer(&dev->watchdog_timer,

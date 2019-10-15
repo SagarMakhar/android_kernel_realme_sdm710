@@ -601,10 +601,14 @@ static struct msm_soc_info cpu_of_id[] = {
 
 	/* SDM710 ID */
 	[360] = {MSM_CPU_SDM710, "SDM710"},
-
-	/* SDM712 ID */
+	/*yangmingjin@BSP.POWER.Basic 2019/06/13, Obscure the cpu model number in confidential version*/
+#if defined(VENDOR_EDIT) && defined(CONFIG_CONFIDENTIAL_VERSION)
+	/* SDMNOBELIUM ID */
+	[393] = {MSM_CPU_SDM712, "SDM710"},
+#else
+	/* SDMNOBELIUM ID */
 	[393] = {MSM_CPU_SDM712, "SDM712"},
-
+#endif
 	/* SXR1120 ID */
 	[370] = {MSM_CPU_SXR1120, "SXR1120"},
 
@@ -672,6 +676,10 @@ uint32_t socinfo_get_version(void)
 {
 	return (socinfo) ? socinfo->v0_1.version : 0;
 }
+#ifdef VENDOR_EDIT
+//jie.cheng@swdp.shanghai, 2015/11/09, export some symbol
+EXPORT_SYMBOL_GPL(socinfo_get_version);
+#endif /* VENDOR_EDIT */
 
 char *socinfo_get_build_id(void)
 {

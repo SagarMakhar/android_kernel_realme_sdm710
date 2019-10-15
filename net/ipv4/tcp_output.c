@@ -2338,6 +2338,15 @@ void tcp_send_loss_probe(struct sock *sk)
 	if (tp->tlp_high_seq)
 		goto rearm_timer;
 
+#ifdef VENDOR_EDIT
+	//Zhenjian Jiang@BSP.Kernel.Stability, 2019/02/01, add for fix tcp warn_on issue
+	/* Already in TCP_FIN_WAIT1, if there is nothing in write queue
+	 * do not rearm the timers
+	 */
+	if (sk->sk_state == TCP_FIN_WAIT1 && !skb)
+		return;
+#endif
+
 	/* Retransmit last segment. */
 	if (WARN_ON(!skb))
 		goto rearm_timer;

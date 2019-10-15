@@ -197,7 +197,6 @@ static inline uint64_t dc_sum_packets(struct data_counters *counters,
 		+ counters->bpc[set][direction][IFS_PROTO_OTHER].packets;
 }
 
-
 /* Generic X based nodes used as a base for rb_tree ops */
 struct tag_node {
 	struct rb_node node;
@@ -238,6 +237,7 @@ struct iface_stat {
 	struct proc_dir_entry *proc_ptr;
 
 	struct rb_root tag_stat_tree;
+	
 	spinlock_t tag_stat_list_lock;
 };
 

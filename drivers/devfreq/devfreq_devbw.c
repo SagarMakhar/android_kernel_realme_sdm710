@@ -219,7 +219,6 @@ int devfreq_remove_devbw(struct device *dev)
 	struct dev_data *d = dev_get_drvdata(dev);
 
 	msm_bus_scale_unregister_client(d->bus_client);
-	devfreq_remove_device(d->df);
 	return 0;
 }
 

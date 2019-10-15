@@ -182,6 +182,10 @@ obj-$(CONFIG_NETFILTER_XT_MATCH_STRING) += xt_string.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_TCPMSS) += xt_tcpmss.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_TIME) += xt_time.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_U32) += xt_u32.o
+#ifdef VENDOR_EDIT
+#Yunqing.Zeng@BSP.Power.Basic 2018/01/11 add for backup of netstat before sleep
+obj-$(CONFIG_XT_QTAGUID_OPPO_STATS) += xt_qtaguid_oppo_stats.o
+#endif /* VENDOR_EDIT */
 
 # ipset
 obj-$(CONFIG_IP_SET) += ipset/

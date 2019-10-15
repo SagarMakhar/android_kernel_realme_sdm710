@@ -266,7 +266,6 @@ int dsi_deregister_clk_handle(void *client);
  *
  * return: error code in case of failure or 0 for success.
  */
-
 int dsi_display_link_clk_force_update(void *handle);
 
 /**

@@ -813,6 +813,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
 	/* mmap_sem is held in m_start */
 	walk_page_vma(vma, &smaps_walk);
 
+
 	show_map_vma(m, vma, is_pid);
 
 	if (vma_get_anon_name(vma)) {

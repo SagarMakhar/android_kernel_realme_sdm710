@@ -359,6 +359,7 @@ struct zone {
 
 	unsigned long nr_reserved_highatomic;
 
+
 	/*
 	 * We don't know if the memory that we're going to allocate will be
 	 * freeable or/and it will be released eventually, so to avoid totally

@@ -4497,6 +4497,10 @@ static void glink_core_rx_cmd_version(struct glink_transport_if *if_ptr,
 				__func__, l_version, xprt_ptr->l_features);
 		}
 		neg_complete = true;
+#ifdef VENDOR_EDIT
+//Hongyu.lu@BSP.FINGERPRINT.BASIC add cr2452126
+		xprt_ptr->local_state = GLINK_XPRT_OPENED;
+#endif
 	}
 	if_ptr->tx_cmd_version_ack(if_ptr, l_version, xprt_ptr->l_features);
 

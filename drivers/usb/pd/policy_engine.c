@@ -178,19 +178,19 @@ static void *usbpd_ipc_log;
 #define usbpd_dbg(dev, fmt, ...) do { \
 	ipc_log_string(usbpd_ipc_log, "%s: %s: " fmt, dev_name(dev), __func__, \
 			##__VA_ARGS__); \
-	dev_dbg(dev, fmt, ##__VA_ARGS__); \
+	dev_err(dev, fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define usbpd_info(dev, fmt, ...) do { \
 	ipc_log_string(usbpd_ipc_log, "%s: %s: " fmt, dev_name(dev), __func__, \
 			##__VA_ARGS__); \
-	dev_info(dev, fmt, ##__VA_ARGS__); \
+	dev_err(dev, fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define usbpd_warn(dev, fmt, ...) do { \
 	ipc_log_string(usbpd_ipc_log, "%s: %s: " fmt, dev_name(dev), __func__, \
 			##__VA_ARGS__); \
-	dev_warn(dev, fmt, ##__VA_ARGS__); \
+	dev_err(dev, fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define usbpd_err(dev, fmt, ...) do { \
@@ -361,6 +361,10 @@ struct usbpd {
 	struct device		dev;
 	struct workqueue_struct	*wq;
 	struct work_struct	sm_work;
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/05/25, sjc Add for handle xiaomi typec headset dsp crash issue(1+) */
+	struct delayed_work	vbus_work;
+#endif
 	struct hrtimer		timer;
 	bool			sm_queued;
 
@@ -718,11 +722,14 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 	bool mismatch = false;
 	u8 type;
 	u32 pdo = pd->received_pdos[pdo_pos - 1];
-
+	usbpd_err(&pd->dev, "pdo_pos: %d, uv: %d, ua: %d\n",
+                                        pdo_pos, uv, ua);
 	type = PD_SRC_PDO_TYPE(pdo);
 	if (type == PD_SRC_PDO_TYPE_FIXED) {
 		curr = max_current = PD_SRC_PDO_FIXED_MAX_CURR(pdo) * 10;
 
+		usbpd_err(&pd->dev, "pdo max_current: %d, uv: %d, ua: %d\n",
+                                        type, pd->requested_voltage, curr);
 		/*
 		 * Check if the PDO has enough current, otherwise set the
 		 * Capability Mismatch flag
@@ -744,11 +751,14 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 					uv, ua);
 			return -EINVAL;
 		}
-
+		usbpd_err(&pd->dev, "uv (%d) and ua (%d) usbpd\n",
+					uv, ua);
 		curr = ua / 1000;
 		pd->requested_voltage = uv;
 		pd->rdo = PD_RDO_AUGMENTED(pdo_pos, mismatch, 1, 1,
 				uv / 20000, ua / 50000);
+		usbpd_err(&pd->dev, "pdo requested_voltage: %d, uv: %d, ua: %d\n",
+                                        type, pd->requested_voltage, curr);
 	} else {
 		usbpd_err(&pd->dev, "Only Fixed or Programmable PDOs supported\n");
 		return -ENOTSUPP;
@@ -758,10 +768,13 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 	if (pd->vconn_enabled && !pd->vconn_is_external &&
 			pd->requested_voltage > 5000000)
 		return -ENOTSUPP;
-
+	usbpd_err(&pd->dev, "type: %d, uv: %d, ua: %d\n",
+                                        type, pd->requested_voltage, pd->requested_current);
 	pd->requested_current = curr;
+	pd->requested_current = 3000;
 	pd->requested_pdo = pdo_pos;
-
+	usbpd_err(&pd->dev, "pdo requested_current type: %d, uv: %d, ua: %d\n",
+                                        type, pd->requested_voltage, pd->requested_current);
 	return 0;
 }
 
@@ -1945,7 +1958,8 @@ enable_reg:
 		usbpd_err(&pd->dev, "Unable to enable vbus (%d)\n", ret);
 	else
 		pd->vbus_enabled = true;
-
+#ifndef VENDOR_EDIT
+/* Qiao.Hu@BSP.BaseDrv.CHG.Basic, 2019/05/15, Add for some keyboard modefy */
 	count = 10;
 	/*
 	 * Check to make sure VBUS voltage reaches above Vsafe5Vmin (4.75v)
@@ -1961,7 +1975,7 @@ enable_reg:
 
 	if (ret)
 		msleep(100); /* Delay to wait for VBUS ramp up if read fails */
-
+#endif
 	return ret;
 }
 
@@ -3568,7 +3582,7 @@ static ssize_t select_pdo_store(struct device *dev,
 		ret = -EINVAL;
 		goto out;
 	}
-
+	usbpd_err(&pd->dev,"pdo:%d, uv:%d, ua:%d\n", pdo, uv, ua);
 	ret = pd_select_pdo(pd, pdo, uv, ua);
 	if (ret)
 		goto out;
@@ -3850,6 +3864,135 @@ static ssize_t get_battery_status_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", pd->battery_sts_dobj);
 }
 static DEVICE_ATTR_RW(get_battery_status);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/05/25, sjc Add for handle xiaomi typec headset dsp crash issue(1+) */
+struct usbpd *pd_lobal;
+unsigned int pd_vbus_ctrl;
+
+module_param(pd_vbus_ctrl, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(pd_vbus_ctrl, "PD VBUS CONTROL");
+
+void pd_vbus_reset(struct usbpd *pd)
+{
+	if (!pd) {
+		pr_err("pd_vbus_reset, pd is null\n");
+		return;
+	}
+	if (pd->vbus_enabled) {
+		pr_err("pd_vbus_reset execute\n");
+		regulator_disable(pd->vbus);
+		pd->vbus_enabled = false;
+		stop_usb_host(pd);
+		pd_vbus_ctrl = 500;
+		msleep(pd_vbus_ctrl);
+		start_usb_host(pd, true);
+		enable_vbus(pd);
+	} else {
+		pr_err("pd_vbus is not enabled yet\n");
+	}
+}
+
+/* Handles VBUS off on */
+void usbpd_vbus_sm(struct work_struct *w)
+{
+	struct usbpd *pd = pd_lobal;
+	/* container_of(w, struct usbpd, vbus_work) */
+
+	pr_err("usbpd_vbus_sm handle state %s, vbus %d\n",
+			usbpd_state_strings[pd->current_state],pd->vbus_enabled);
+
+	/* to be done, pd->sm_queued = false; */
+	pd_vbus_reset(pd);
+}
+
+void kick_usbpd_vbus_sm(void)
+{
+	pm_stay_awake(&pd_lobal->dev);
+
+	/* to be done pd_lobal->sm_queued = true;*/
+	pr_err("kick_usbpd_vbus_sm handle state %s, vbus %d\n",
+			usbpd_state_strings[pd_lobal->current_state],pd_lobal->vbus_enabled);
+
+	queue_delayed_work(pd_lobal->wq, &(pd_lobal->vbus_work), msecs_to_jiffies(200));
+}
+
+static ssize_t pd_vbus_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct usbpd *pd = dev_get_drvdata(dev);
+	pr_err("pd_vbus_show handle state %s, vbus %d\n",
+			usbpd_state_strings[pd_lobal->current_state],pd_lobal->vbus_enabled);
+
+	pd_vbus_reset(pd);
+
+	return 0;
+}
+
+static ssize_t pd_vbus_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int val = 0;
+
+	if (sscanf(buf, "%d\n", &val) != 0) {
+		pr_err("pd_vbus_store input err\n");
+	}
+	pr_err("pd_vbus_store handle state %s, vbus %d,val %d\n",
+			usbpd_state_strings[pd_lobal->current_state],pd_lobal->vbus_enabled,val);
+	kick_usbpd_vbus_sm();
+
+	return size;
+}
+static DEVICE_ATTR_RW(pd_vbus);
+#endif//VENDOR_EDIT
+
+int usbpd_select_pdo(struct usbpd *pd, int pdo, int uv, int ua)
+{
+	int ret;
+
+	mutex_lock(&pd->swap_lock);
+
+	/* Only allowed if we are already in explicit sink contract */
+	if (pd->current_state != PE_SNK_READY || !is_sink_tx_ok(pd)) {
+		usbpd_err(&pd->dev, "select_pdo: Cannot select new PDO yet\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (pdo < 1 || pdo > 7) {
+		usbpd_err(&pd->dev, "select_pdo: invalid PDO:%d\n", pdo);
+		ret = -EINVAL;
+		goto out;
+	}
+	usbpd_err(&pd->dev,"pdo:%d, uv:%d, ua:%d\n", pdo, uv, ua);
+	ret = pd_select_pdo(pd, pdo, uv, ua);
+	if (ret)
+		goto out;
+
+	reinit_completion(&pd->is_ready);
+	pd->send_request = true;
+	kick_sm(pd, 0);
+
+	/* wait for operation to complete */
+	if (!wait_for_completion_timeout(&pd->is_ready,
+			msecs_to_jiffies(1000))) {
+		usbpd_err(&pd->dev, "select_pdo: request timed out\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	/* determine if request was accepted/rejected */
+	if (pd->selected_pdo != pd->requested_pdo ||
+			pd->current_voltage != pd->requested_voltage) {
+		usbpd_err(&pd->dev, "select_pdo: request rejected\n");
+		ret = -EINVAL;
+	}
+
+out:
+	pd->send_request = false;
+	mutex_unlock(&pd->swap_lock);
+	return ret;
+}
+
 
 static struct attribute *usbpd_attrs[] = {
 	&dev_attr_contract.attr,
@@ -3875,6 +4018,10 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_get_pps_status.attr,
 	&dev_attr_get_battery_cap.attr,
 	&dev_attr_get_battery_status.attr,
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/05/25, sjc Add for handle xiaomi typec headset dsp crash issue(1+) */
+	&dev_attr_pd_vbus.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(usbpd);
@@ -3997,6 +4144,10 @@ struct usbpd *usbpd_create(struct device *parent)
 		goto del_pd;
 	}
 	INIT_WORK(&pd->sm_work, usbpd_sm);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/05/25, sjc Add for handle xiaomi typec headset dsp crash issue(1+) */
+	INIT_DELAYED_WORK(&pd->vbus_work,usbpd_vbus_sm);
+#endif
 	hrtimer_init(&pd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pd->timer.function = pd_timeout;
 	mutex_init(&pd->swap_lock);
@@ -4138,6 +4289,10 @@ struct usbpd *usbpd_create(struct device *parent)
 
 	/* force read initial power_supply values */
 	psy_changed(&pd->psy_nb, PSY_EVENT_PROP_CHANGED, pd->usb_psy);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/05/25, sjc Add for handle xiaomi typec headset dsp crash issue(1+) */
+	pd_lobal = pd;
+#endif
 
 	return pd;
 

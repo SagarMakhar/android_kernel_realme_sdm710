@@ -2366,6 +2366,7 @@ EXPORT_SYMBOL_GPL(clk_list_frequency);
 static struct dentry *rootdir;
 static int inited = 0;
 static u32 debug_suspend;
+
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 
@@ -3049,10 +3050,9 @@ EXPORT_SYMBOL_GPL(clk_debugfs_add_file);
  * Otherwise if print_parent set to 0, print only enabled clocks
  *
  */
+
 void clock_debug_print_enabled(bool print_parent)
 {
-	if (likely(!debug_suspend))
-		return;
 
 	if (print_parent)
 		clock_debug_print_enabled_clocks(NULL);

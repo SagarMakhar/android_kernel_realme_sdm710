@@ -194,6 +194,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 				check_hung_task(t, timeout);
 	}
  unlock:
+
 	rcu_read_unlock();
 }
 

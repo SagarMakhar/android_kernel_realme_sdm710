@@ -1804,7 +1804,7 @@ struct task_struct {
 	int nr_cpus_allowed;
 	cpumask_t cpus_allowed;
 	cpumask_t cpus_requested;
-
+	
 #ifdef CONFIG_PREEMPT_RCU
 	int rcu_read_lock_nesting;
 	union rcu_special rcu_read_unlock_special;
@@ -3325,6 +3325,38 @@ static inline void exit_thread(struct task_struct *tsk)
 }
 #endif
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_ELSA_STUB)
+//zhoumingjun@Swdp.shanghai, 2017/04/19, add process_event_notifier support
+#define PROCESS_EVENT_CREATE 1
+#define PROCESS_EVENT_EXIT 2
+#define PROCESS_EVENT_UID 3
+#define PROCESS_EVENT_SOCKET 4
+#define PROCESS_EVENT_BINDER 5
+#define PROCESS_EVENT_BINDER_NO_WORK 6
+#define PROCESS_EVENT_SIGNAL_FROZEN 7
+
+#define BINDER_DESCRIPTOR_SIZE	70
+struct process_event_data {
+    pid_t pid;
+    kuid_t uid;
+    kuid_t old_uid;
+    long reason;
+    long reason2;
+    __u32 binder_flag;
+    int freeze_binder_count;
+    char buf[BINDER_DESCRIPTOR_SIZE];
+    void *priv;
+};
+extern int process_event_register_notifier(struct notifier_block *nb);
+extern int process_event_unregister_notifier(struct notifier_block *nb);
+extern int process_event_notifier_call_chain(unsigned long action, struct process_event_data *pe_data);
+
+//zhoumingjun@Swdp.shanghai, 2017/07/06, add process_event_notifier_atomic support
+extern int process_event_register_notifier_atomic(struct notifier_block *nb);
+extern int process_event_unregister_notifier_atomic(struct notifier_block *nb);
+extern int process_event_notifier_call_chain_atomic(unsigned long action, struct process_event_data *pe_data);
+#endif
+
 extern void exit_files(struct task_struct *);
 extern void __cleanup_sighand(struct sighand_struct *);
 
@@ -3394,6 +3426,7 @@ extern bool current_is_single_threaded(void);
 /* Careful: this is a double loop, 'break' won't work as expected. */
 #define for_each_process_thread(p, t)	\
 	for_each_process(p) for_each_thread(p, t)
+
 
 static inline int get_nr_threads(struct task_struct *tsk)
 {
@@ -3672,6 +3705,7 @@ static inline int fatal_signal_pending(struct task_struct *p)
 {
 	return signal_pending(p) && __fatal_signal_pending(p);
 }
+
 
 static inline int signal_pending_state(long state, struct task_struct *p)
 {

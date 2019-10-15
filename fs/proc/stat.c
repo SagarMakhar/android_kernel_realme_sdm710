@@ -195,6 +195,7 @@ static const struct file_operations proc_stat_operations = {
 	.release	= single_release,
 };
 
+
 static int __init proc_stat_init(void)
 {
 	proc_create("stat", 0, NULL, &proc_stat_operations);

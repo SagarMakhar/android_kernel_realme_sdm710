@@ -44,6 +44,26 @@
 
 #include "irq-gic-common.h"
 
+
+#ifdef VENDOR_EDIT
+//liuhd@PSW.CN.WiFi.Hardware.1202765,2017/12/10,add for the irq of wlan when system wakeuped by wlan
+#define WLAN_WAKEUP_IRQ_NUMBER	723
+
+#define WAKEUP_SOURCE_WIFI_1ST 123
+#define WAKEUP_SOURCE_WIFI_2ND 129
+#define WAKEUP_SOURCE_WIFI_3RD 131
+#define WAKEUP_SOURCE_WIFI_4TH 134
+extern u64 wakeup_source_count_wifi ;
+#endif /*VENDOR_EDIT*/
+
+#ifdef VENDOR_EDIT
+//Lei.Zhang@PSW.CN.WiFi.Hardware., 2019/03/02
+//Add irq of WiFi for SDM710
+static unsigned int wlan_sirq = 0;
+#define WLAN_DATA_IRQ_NAME   "WLAN_CE_2"
+#endif /*VENDOR_EDIT*/
+
+
 #define MAX_IRQ			1020U	/* Max number of SGI+PPI+SPI */
 #define SPI_START_IRQ		32	/* SPI start irq number */
 #define GICD_ICFGR_BITS		2	/* 2 bits per irq in GICD_ICFGR */
@@ -695,16 +715,24 @@ static int gic_suspend(void)
 {
 	return 0;
 }
-
+//yangmingjin@BSP.POWER.Basic 2019/05/30 add for RM_TAG_POWER_DEBUG
+#ifdef VENDOR_EDIT
+extern void set_ipc_router_debug_mask(int ipc_router_debug_mask);
+#endif
+/* VENDOR_EDIT */
 static void gic_show_resume_irq(struct gic_chip_data *gic)
 {
 	unsigned int i;
 	u32 enabled;
 	u32 pending[32];
 	void __iomem *base = gic_data.dist_base;
-
 	if (!msm_show_resume_irq_mask)
 		return;
+//yangmingjin@BSP.POWER.Basic 2019/05/30 add for RM_TAG_POWER_DEBUG
+#ifdef VENDOR_EDIT
+        set_ipc_router_debug_mask(1);
+#endif
+/* VENDOR_EDIT */
 
 	for (i = 0; i * 32 < gic->irq_nr; i++) {
 		enabled = readl_relaxed(base + GICD_ICENABLER + i * 4);
@@ -725,6 +753,24 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 
 		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+
+                  #ifdef VENDOR_EDIT
+                  //Lei.Zhang@PSW.CN.WiFi.Hardware., 2019/03/02
+                  //Add irq of WiFi for SDM710
+                  if (wlan_sirq == 0 && (name != NULL) && strncmp(name, WLAN_DATA_IRQ_NAME, strlen(WLAN_DATA_IRQ_NAME)) == 0) {
+                      wlan_sirq = irq;
+                  }
+                  #endif //VENDOR_EDIT
+
+		
+		
+		
+
+		
+		
+
+
+	
 	}
 }
 

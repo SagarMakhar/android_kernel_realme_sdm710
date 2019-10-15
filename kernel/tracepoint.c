@@ -325,8 +325,15 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_unregister);
 #ifdef CONFIG_MODULES
 bool trace_module_has_bad_taint(struct module *mod)
 {
+#ifdef VENDOR_EDIT
+/*cuixiaogang@SRC, 2018/04/17, modifies taints masks for force installed kernel module */
+	return mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP) |
+			       (1 << TAINT_UNSIGNED_MODULE) |
+			       (1 << TAINT_FORCED_MODULE));
+#else
 	return mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP) |
 			       (1 << TAINT_UNSIGNED_MODULE));
+#endif
 }
 
 static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);

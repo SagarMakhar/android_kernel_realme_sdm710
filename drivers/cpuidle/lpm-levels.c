@@ -1650,11 +1650,12 @@ static void register_cluster_lpm_stats(struct lpm_cluster *cl,
 		register_cluster_lpm_stats(child, cl);
 }
 
+//yangmingjin@BSP.POWER.Basic 2019/05/30 add for RM_TAG_POWER_DEBUG
+
 static int lpm_suspend_prepare(void)
 {
 	suspend_in_progress = true;
 	lpm_stats_suspend_enter();
-
 	return 0;
 }
 
@@ -1662,6 +1663,7 @@ static void lpm_suspend_wake(void)
 {
 	suspend_in_progress = false;
 	lpm_stats_suspend_exit();
+
 }
 
 static int lpm_suspend_enter(suspend_state_t state)

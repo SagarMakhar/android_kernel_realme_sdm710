@@ -649,4 +649,5 @@ static inline bool qstr_case_eq(const struct qstr *q1, const struct qstr *q2)
 
 #define QSTR_LITERAL(string) QSTR_INIT(string, sizeof(string)-1)
 
+
 #endif	/* not _SDCARDFS_H_ */

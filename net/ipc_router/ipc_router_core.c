@@ -52,6 +52,26 @@ module_param_named(debug_mask, msm_ipc_router_debug_mask,
 
 #define IPC_RTR_INFO_PAGES 6
 
+//yangmingjin@BSP.POWER.Basic 2019/05/30 add for RM_TAG_POWER_DEBUG
+#ifdef VENDOR_EDIT
+static int ipc_router_debug_mask = 0;
+
+void set_ipc_router_debug_mask(int debug_mask){
+	ipc_router_debug_mask = !!debug_mask;
+};
+#endif
+/*VENDOR_EDIT*/
+
+//yangmingjin@BSP.POWER.Basic 2019/05/30 modify for RM_TAG_POWER_DEBUG
+#ifdef VENDOR_EDIT
+#define IPC_RTR_INFO(log_ctx, x...) do { \
+typeof(log_ctx) _log_ctx = (log_ctx); \
+if (_log_ctx) \
+	ipc_log_string(_log_ctx, x); \
+if ((msm_ipc_router_debug_mask & RTR_DBG)|| ipc_router_debug_mask) \
+	pr_info("[RM_POWER_IPCRTR] "x); \
+} while (0)
+#else
 #define IPC_RTR_INFO(log_ctx, x...) do { \
 typeof(log_ctx) _log_ctx = (log_ctx); \
 if (_log_ctx) \
@@ -59,7 +79,8 @@ if (_log_ctx) \
 if (msm_ipc_router_debug_mask & RTR_DBG) \
 	pr_info("[IPCRTR] "x); \
 } while (0)
-
+#endif
+/*VENDOR_EDIT*/
 #define IPC_ROUTER_LOG_EVENT_TX         0x01
 #define IPC_ROUTER_LOG_EVENT_RX         0x02
 #define IPC_ROUTER_LOG_EVENT_TX_ERR     0x03
@@ -239,7 +260,11 @@ static int is_sensor_port(struct msm_ipc_router_remote_port *rport)
 
 	if (rport && rport->server) {
 		svcid = rport->server->name.service;
-		if (svcid == 400 || (svcid >= 256 && svcid <= 320))
+		//#ifdef VENDOR_EDIT
+		//if (svcid == 400||(svcid >= 256 && svcid <= 320))
+		//Zengchao@PSW.BSP.Sensor 2018/8/11 add for to hold lock
+		if ((svcid >= 256 && svcid <= 320))
+		//#endif
 			return true;
 	}
 

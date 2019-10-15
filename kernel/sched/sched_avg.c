@@ -209,6 +209,9 @@ unsigned int sched_get_cpu_util(int cpu)
 	busy = div64_ul((util * 100), capacity);
 	return busy;
 }
+#ifdef VENDOR_EDIT
+EXPORT_SYMBOL(sched_get_cpu_util);
+#endif /* VENDOR_EDIT */
 
 u64 sched_get_cpu_last_busy_time(int cpu)
 {

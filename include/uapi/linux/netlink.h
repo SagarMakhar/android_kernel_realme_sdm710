@@ -30,7 +30,13 @@
 #define NETLINK_SOCKEV          22      /* Socket Administrative Events */
 #define NETLINK_INET_DIAG	NETLINK_SOCK_DIAG
 
-#define MAX_LINKS 32		
+//#ifdef VENDOR_EDIT
+//#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+//#define NETLINK_OPPO_KEVENT 34
+//#endif /* VENDOR_EDIT */
+
+#define MAX_LINKS 33
+
 
 struct sockaddr_nl {
 	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/

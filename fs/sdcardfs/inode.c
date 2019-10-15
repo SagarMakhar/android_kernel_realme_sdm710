@@ -447,6 +447,7 @@ static int sdcardfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (err)
 		goto out;
 
+
 	/* Copy attrs from lower dir, but i_uid/i_gid */
 	sdcardfs_copy_and_fix_attrs(new_dir, d_inode(lower_new_dir_dentry));
 	fsstack_copy_inode_size(new_dir, d_inode(lower_new_dir_dentry));

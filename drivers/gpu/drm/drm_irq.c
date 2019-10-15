@@ -1232,6 +1232,11 @@ EXPORT_SYMBOL(drm_crtc_vblank_put);
  * It is a failure to call this when the vblank irq for @pipe is disabled, e.g.
  * due to lack of driver support or because the crtc is off.
  */
+
+#ifdef VENDOR_EDIT
+/* Fuchun.Liao@BSP.CHG.Basic 2019/03/09 add for warn hang */
+extern int panic_on_warn;
+#endif /* VENDOR_EDIT */
 void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
@@ -1250,9 +1255,15 @@ void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 	ret = wait_event_timeout(vblank->queue,
 				 last != drm_vblank_count(dev, pipe),
 				 msecs_to_jiffies(100));
-
+#ifndef VENDOR_EDIT
+/* Fuchun.Liao@BSP.CHG.Basic 2019/03/09 add for warn hang */
 	WARN(ret == 0, "vblank wait timed out on crtc %i\n", pipe);
-
+#else
+	if (ret == 0) {
+		pr_err("vblank wait timed out on crtc %i, panic_on_warn:%d\n",
+			pipe, panic_on_warn);
+	}
+#endif /* VENDOR_EDIT */
 	drm_vblank_put(dev, pipe);
 }
 EXPORT_SYMBOL(drm_wait_one_vblank);

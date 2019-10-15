@@ -345,7 +345,21 @@ static int rradc_post_process_therm(struct rradc_chip *chip,
 
 	return 0;
 }
+#ifdef VENDOR_EDIT /*LiYue@BSP.CHG.Basic, 2019/06/05, add for usb temp adc conversion*/
+static int rradc_post_process_volt_usb_temp(struct rradc_chip *chip,
+			struct rradc_chan_prop *prop, u16 adc_code,
+			int *result_mv)
+{
+	int64_t mv = 0;
 
+	/* 2.7V ADC full scale, 10 bit */
+	mv = ((int64_t)adc_code * 2700);
+	mv = div64_s64(mv, FG_MAX_ADC_READINGS);
+	*result_mv = mv;
+
+	return 0;
+}
+#endif /*VENDOR_EDIT*/
 static int rradc_post_process_volt(struct rradc_chip *chip,
 			struct rradc_chan_prop *prop, u16 adc_code,
 			int *result_uv)
@@ -635,10 +649,16 @@ static const struct rradc_channels rradc_chans[] = {
 			BIT(IIO_CHAN_INFO_RAW),
 			FG_ADC_RR_BATT_THERM_LSB, FG_ADC_RR_BATT_THERM_MSB,
 			FG_ADC_RR_BATT_THERM_STS)
+#ifndef VENDOR_EDIT /*LiYue@BSP.CHG.Basic, 2019/06/05, add for usb temp adc conversion*/
 	RR_ADC_CHAN_TEMP("skin_temp", &rradc_post_process_therm,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_PROCESSED),
 			FG_ADC_RR_SKIN_TEMP_LSB, FG_ADC_RR_SKIN_TEMP_MSB,
 			FG_ADC_RR_AUX_THERM_STS)
+#else
+	RR_ADC_CHAN_VOLT("usb_temp_v", &rradc_post_process_volt_usb_temp,
+			FG_ADC_RR_AUX_THERM_LSB, FG_ADC_RR_AUX_THERM_MSB,
+			FG_ADC_RR_AUX_THERM_STS)
+#endif /*VENDOR_EDIT*/
 	RR_ADC_CHAN_CURRENT("usbin_i", &rradc_post_process_usbin_curr,
 			FG_ADC_RR_USB_IN_I_LSB, FG_ADC_RR_USB_IN_I_MSB,
 			FG_ADC_RR_USB_IN_I_STS)
@@ -766,7 +786,9 @@ static int rradc_check_status_ready_with_retry(struct rradc_chip *chip,
 			rradc_chans[prop->channel].datasheet_name, buf[0]);
 
 		if (((prop->channel == RR_ADC_CHG_TEMP) ||
+#ifndef VENDOR_EDIT /*LiYue@BSP.CHG.Basic, 2019/06/05, add for usb temp adc conversion*/
 			(prop->channel == RR_ADC_SKIN_TEMP) ||
+#endif /*VENDOR_EDIT*/
 			(prop->channel == RR_ADC_USBIN_I) ||
 			(prop->channel == RR_ADC_DIE_TEMP)) &&
 					((!rradc_is_usb_present(chip)))) {
@@ -938,6 +960,32 @@ static int rradc_do_conversion(struct rradc_chip *chip,
 			goto fail;
 		}
 		break;
+#ifdef VENDOR_EDIT /*LiYue@BSP.CHG.Basic, 2019/06/05, add for usb temp adc conversion*/
+	case RR_ADC_SKIN_TEMP:
+		/* Force conversion every cycle */
+		rc = rradc_masked_write(chip, FG_ADC_RR_AUX_THERM_TRIGGER,
+				FG_ADC_RR_USB_IN_V_EVERY_CYCLE_MASK,
+				FG_ADC_RR_USB_IN_V_EVERY_CYCLE);
+		if (rc < 0) {
+			pr_err("Force every cycle update failed:%d\n", rc);
+			goto fail;
+		}
+
+		rc = rradc_read_channel_with_continuous_mode(chip, prop, buf);
+		if (rc < 0) {
+			pr_err("Error reading in continuous mode:%d\n", rc);
+			goto fail;
+		}
+
+		/* Restore aux_therm trigger */
+		rc = rradc_masked_write(chip, FG_ADC_RR_AUX_THERM_TRIGGER,
+				FG_ADC_RR_USB_IN_V_EVERY_CYCLE_MASK, 0);
+		if (rc < 0) {
+			pr_err("Restore every cycle update failed:%d\n", rc);
+			goto fail;
+		}
+		break;
+#endif /*VENDOR_EDIT*/
 	case RR_ADC_CHG_HOT_TEMP:
 	case RR_ADC_CHG_TOO_HOT_TEMP:
 	case RR_ADC_SKIN_HOT_TEMP:
