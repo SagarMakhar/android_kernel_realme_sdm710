@@ -384,3 +384,5 @@
 		status = "disabled";
 	};
 };
+
+#include "RMX1901/sdm670-mtp-overlay.dtsi"

@@ -3087,3 +3087,5 @@
 		pinctrl-0 = <&nx30p6093_intr_default>;
 	};
 };
+
+#include "RMX1901/sdm670-overlay.dtsi"

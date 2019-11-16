@@ -25,3 +25,5 @@
 	/delete-property/qcom,soc-hw-rev-efuse;
 	/delete-node/qcom,soc-hw-revisions;
 };
+
+#include "RMX1901/sdm710-overlay.dtsi"

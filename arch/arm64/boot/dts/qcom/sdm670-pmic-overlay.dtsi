@@ -433,3 +433,5 @@
 		};
 	};
 };
+
+#include "RMX1901/sdm670-pmic-overlay-RMX1901.dtsi"

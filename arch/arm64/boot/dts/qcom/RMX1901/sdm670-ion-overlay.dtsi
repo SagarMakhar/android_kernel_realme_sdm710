@@ -1,0 +1,12 @@
+&soc {
+    qcom,ion {
+        qcom,ion-heap@14 {
+            reg = <14>;
+            qcom,ion-heap-type = "SECURE_CARVEOUT";
+            node1 {
+                memory-region = <&secure_dsp_mem>;
+                token = <0x20000000>; /* ION_FLAG_CP_CDSP */
+            };
+        };
+    };
+};

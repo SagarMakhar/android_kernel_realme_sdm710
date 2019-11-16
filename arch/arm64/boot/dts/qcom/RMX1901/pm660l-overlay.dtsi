@@ -1,0 +1,6 @@
+&pm660l_3 {
+    qcom,leds@d000 {
+        /delete-node/ qcom,rgb_0;
+        /delete-node/ qcom,rgb_2;
+    };
+};

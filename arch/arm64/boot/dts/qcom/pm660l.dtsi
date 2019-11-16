@@ -318,3 +318,5 @@
 		};
 	};
 };
+
+#include "RMX1901/pm660l-overlay.dtsi"

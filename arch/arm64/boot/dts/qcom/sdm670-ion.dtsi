@@ -58,3 +58,5 @@
 
 	};
 };
+
+#include "RMX1901/sdm670-ion-overlay.dtsi"

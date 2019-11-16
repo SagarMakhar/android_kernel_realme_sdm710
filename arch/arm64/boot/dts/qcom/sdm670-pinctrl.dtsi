@@ -2333,3 +2333,5 @@
 		output-high;
 	};
 };
+
+#include "RMX1901/sdm670-pinctrl-overlay.dtsi"

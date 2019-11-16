@@ -688,3 +688,5 @@
 		qcom,proxy-consumer-enable;
 	};
 };
+
+#include "RMX1901/sdm670-regulator-overlay.dtsi"

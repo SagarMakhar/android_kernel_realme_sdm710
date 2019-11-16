@@ -1,0 +1,11 @@
+&soc {
+	qupv3_se4_i2c: i2c@890000 {
+		status = "ok";
+	};
+
+	qupv3_se4_spi: spi@890000 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		/delete-property/ pinctrl-1;
+	};
+};

@@ -530,3 +530,5 @@
 		};
 	};
 };
+
+#include "RMX1901/sdm670-audio-overlay-RMX1901.dtsi"
