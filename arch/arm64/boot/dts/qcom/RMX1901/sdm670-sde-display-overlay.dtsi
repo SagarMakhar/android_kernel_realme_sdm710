@@ -1,0 +1,136 @@
+#include "dsi-panel_oppo17081samsung_ams596w401_1080_2280.dtsi"
+#include "dsi-panel_oppo18081samsung_ams641rw01_1080_2340.dtsi"
+
+&soc {
+    dsi_oppo18041samsung_ams653tk01_1080_2340_cmd_display: qcom,dsi-display@21 {
+        compatible = "qcom,dsi-display";
+        label = "dsi_oppo18041samsung_ams653tk01_1080_2340_cmd_display";
+        qcom,display-type = "primary";
+
+        qcom,dsi-ctrl = <&mdss_dsi0>;
+        qcom,dsi-phy = <&mdss_dsi_phy0>;
+        clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+               <&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+        clock-names = "mux_byte_clk", "mux_pixel_clk";
+
+        pinctrl-names = "panel_active", "panel_suspend";
+        pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+        pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+        qcom,platform-te-gpio = <&tlmm 10 0>;
+        qcom,platform-reset-gpio = <&tlmm 26 0>;
+        qcom,dsi-display-active;
+
+        qcom,dsi-panel = <&dsi_oppo18041samsung_ams653tk01_1080_2340_cmd>;
+        vddio-supply = <&pm660_l8>;
+        vdda-3p3-supply = <&pm660l_l6>;
+    };
+
+    dsi_oppo18041samsung_ams653tk01_1080_2340_cmd_display_evt: qcom,dsi-display@22 {
+        compatible = "qcom,dsi-display";
+        label = "dsi_oppo18041samsung_ams653tk01_1080_2340_cmd_display_evt";
+        qcom,display-type = "primary";
+
+        qcom,dsi-ctrl = <&mdss_dsi0>;
+        qcom,dsi-phy = <&mdss_dsi_phy0>;
+        clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+               <&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+        clock-names = "mux_byte_clk", "mux_pixel_clk";
+
+        pinctrl-names = "panel_active", "panel_suspend";
+        pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+        pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+        qcom,platform-te-gpio = <&tlmm 10 0>;
+        qcom,platform-reset-gpio = <&tlmm 26 0>;
+        qcom,dsi-display-active;
+
+        qcom,dsi-panel = <&dsi_oppo18041samsung_ams653tk01_1080_2340_cmd_evt>;
+        vddio-supply = <&pm660_l8>;
+        vdda-3p3-supply = <&pm660l_l6>;
+    };
+};
+
+&dsi_dual_nt35597_truly_video_display {
+    status = "disabled";
+};
+
+&dsi_dual_nt35597_truly_cmd_display {
+    status = "disabled";
+};
+
+&dsi_nt35597_truly_dsc_cmd_display {
+    status = "disabled";
+};
+
+&dsi_nt35597_truly_dsc_video_display {
+    status = "disabled";
+};
+
+&dsi_sim_vid_display {
+    status = "disabled";
+};
+
+&dsi_dual_sim_vid_display {
+    status = "disabled";
+};
+
+&dsi_sim_cmd_display {
+    status = "disabled";
+};
+
+&dsi_dual_sim_cmd_display {
+    status = "disabled";
+};
+
+&dsi_sim_dsc_375_cmd_display {
+    status = "disabled";
+};
+
+&dsi_dual_sim_dsc_375_cmd_display {
+    status = "disabled";
+};
+
+&dsi_dual_nt35597_video_display {
+    status = "disabled";
+};
+
+&dsi_dual_nt35597_cmd_display {
+    status = "disabled";
+};
+
+&dsi_rm67195_amoled_fhd_cmd_display {
+    status = "disabled";
+};
+
+&dsi_nt35695b_truly_fhd_video_display {
+    status = "disabled";
+};
+
+&dsi_nt35695b_truly_fhd_cmd_display {
+    status = "disabled";
+};
+
+&dsi_dual_nt36850_truly_cmd_display {
+    status = "disabled";
+};
+
+&dsi_hx8399_truly_cmd_display {
+    status = "disabled";
+};
+
+&dsi_hx83112a_truly_video_display {
+    status = "disabled";
+};
+
+&ext_dsi_bridge_display {
+    status = "disabled";
+};
+
+&sde_dp {
+    /delete-property/ pinctrl-0;
+    /delete-property/ pinctrl-1;
+    /delete-property/ qcom,aux-en-gpio;
+};
+
+&mdss_mdp {
+    connectors = <&sde_rscc &sde_wb>;
+};

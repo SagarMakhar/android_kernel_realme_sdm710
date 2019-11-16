@@ -410,3 +410,5 @@
 		clock-rates = <24000000>;
 	};
 };
+
+#include "RMX1901/sdm670-camera-sensor-mtp-overlay.dtsi"

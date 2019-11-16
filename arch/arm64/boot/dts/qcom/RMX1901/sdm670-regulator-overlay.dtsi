@@ -1,0 +1,7 @@
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+
+&pm660_l11 {
+    qcom,proxy-consumer-current = <150000>;
+    qcom,init-voltage = <1800000>;
+    qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+};

@@ -812,3 +812,5 @@
 		status = "disabled";
 	};
 };
+
+#include "RMX1901/sdm670-qupv3-overlay.dtsi"

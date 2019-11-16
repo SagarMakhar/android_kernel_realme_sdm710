@@ -955,3 +955,5 @@
 		};
 	};
 };
+
+#include "RMX1901/sdm670-sde-display-overlay.dtsi"
