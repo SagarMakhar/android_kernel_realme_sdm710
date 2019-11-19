@@ -85,3 +85,6 @@ obj-$(CONFIG_INPUT_YEALINK)		+= yealink.o
 obj-$(CONFIG_INPUT_IDEAPAD_SLIDEBAR)	+= ideapad_slidebar.o
 obj-$(CONFIG_INPUT_PIXART_OTS_PAT9125_SWITCH)	+= ots_pat9125/
 obj-$(CONFIG_STMVL53L0X)	+= vl53l0x/
+ifeq ($(CONFIG_PRODUCT_REALME_RMX1901),y)
+obj-y         += oppo_seccommon_drivers/
+endif
