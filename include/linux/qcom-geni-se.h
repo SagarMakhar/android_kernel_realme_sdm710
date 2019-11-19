@@ -66,11 +66,19 @@ struct se_geni_rsc {
 	struct pinctrl *geni_pinctrl;
 	struct pinctrl_state *geni_gpio_active;
 	struct pinctrl_state *geni_gpio_sleep;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	struct pinctrl_state *geni_gpio_pulldown;
+	struct pinctrl_state *geni_gpio_pullup;
+#endif
 	int	clk_freq_out;
 };
 
 #define PINCTRL_DEFAULT	"default"
 #define PINCTRL_SLEEP	"sleep"
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#define PINCTRL_PULLDOWN	"pulldown"
+#define PINCTRL_PULLUP		"pullup"
+#endif
 
 #define KHz(freq) (1000 * (freq))
 
