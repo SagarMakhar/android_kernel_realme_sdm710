@@ -59,8 +59,8 @@ COMMON_DIR :=	include
 COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 TFA_INC    :=   -I$(AUDIO_ROOT)/asoc/codecs/tfa98xx/inc
 
-# for TFA9874 Amplifer
-ifdef CONFIG_SND_SOC_TFA9874
+# for TFA9894 Amplifer
+ifdef CONFIG_SND_SOC_TFA9894
 	TFA98XX_OBJS += src/tfa98xx.o
 	TFA98XX_OBJS += src/tfa_container.o
 	TFA98XX_OBJS += src/tfa_dsp.o
@@ -112,7 +112,7 @@ KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/soc/Module
 endif
 
 # Module information used by KBuild framework
-obj-$(CONFIG_SND_SOC_TFA9874)    += tfa98xx_dlkm.o
+obj-$(CONFIG_SND_SOC_TFA9894)    += tfa98xx_dlkm.o
 tfa98xx_dlkm-y := $(TFA98XX_OBJS)
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
