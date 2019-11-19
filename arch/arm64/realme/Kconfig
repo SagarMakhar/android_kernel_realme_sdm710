@@ -1,0 +1,26 @@
+menu "Realme product selection"
+
+config PRODUCT_REALME
+	bool "Realme devices"
+	help
+	  This enables support for Realme devices.
+
+if PRODUCT_REALME
+
+config PRODUCT_REALME_SDM710
+	bool "Realme SDM710-Common"
+
+choice
+	prompt "Realme device"
+
+config PRODUCT_REALME_RMX1901
+	bool "Realme X"
+	select PRODUCT_REALME_SDM710
+	help
+	  This enables support for Realme X.
+
+endchoice
+
+endif
+
+endmenu
