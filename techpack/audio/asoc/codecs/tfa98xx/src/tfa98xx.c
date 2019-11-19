@@ -26,13 +26,34 @@
 #include "tfa98xx.h"
 #include "tfa.h"
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#include <linux/regulator/consumer.h>
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 /* required for enum tfa9912_irq */
 #include "tfa98xx_tfafieldnames.h"
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#include <linux/proc_fs.h>
+#include <soc/oppo/oppo_project.h>
+
+struct tfa98xx *tfa98xx_whole_v6;
+extern bool g_speaker_resistance_fail;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
+#ifndef CONFIG_DEBUG_FS
+#define CONFIG_DEBUG_FS
+#endif
 
 #define TFA98XX_VERSION	TFA98XX_API_REV_STR
 
 #define I2C_RETRIES 50
 #define I2C_RETRY_DELAY 5 /* ms */
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#include <linux/debugfs.h>
+#include <linux/fs.h>
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 /* Change volume selection behavior:
  * Uncomment following line to generate a profile change when updating
@@ -64,9 +85,16 @@ static nxpTfaContainer_t *tfa98xx_container = NULL;
 static int tfa98xx_kmsg_regs = 0;
 static int tfa98xx_ftrace_regs = 0;
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static char fw_name[100] = {0};
+static char *fw_name_v6 = "tfa98xx.cnt";
+module_param(fw_name_v6, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fw_name_v6, "TFA98xx DSP firmware (container file) name.");
+#else
 static char *fw_name = "tfa98xx.cnt";
 module_param(fw_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fw_name, "TFA98xx DSP firmware (container file) name.");
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 static int trace_level = 0;
 module_param(trace_level, int, S_IRUGO);
@@ -87,7 +115,7 @@ static int pcm_sample_format = 0;
 module_param(pcm_sample_format, int, S_IRUGO);
 MODULE_PARM_DESC(pcm_sample_format, "PCM sample format: 0=S16_LE, 1=S24_LE, 2=S32_LE\n");
 
-static int pcm_no_constraint = 0;
+static int pcm_no_constraint = 1;
 module_param(pcm_no_constraint, int, S_IRUGO);
 MODULE_PARM_DESC(pcm_no_constraint, "do not use constraints for PCM parameters\n");
 
@@ -97,6 +125,70 @@ static void tfa98xx_interrupt_enable(struct tfa98xx *tfa98xx, bool enable);
 
 static int get_profile_from_list(char *buf, int id);
 static int get_profile_id_for_sr(int id, unsigned int rate);
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static bool is_tfa98xx_series(int rev)
+{
+	bool ret = false;
+
+	if ((((rev & 0xff) == 0x80) || ((rev & 0xff) == 0x81) ||
+		((rev & 0xff) == 0x92) || ((rev & 0xff) == 0x91)) ||
+		((rev & 0xff) == 0x94)
+	) {
+		ret = true;
+	}
+
+	return ret;
+}
+
+static char const *ftm_spk_rev_text[] = {"NG", "OK"};
+static const struct soc_enum ftm_spk_rev_enum = SOC_ENUM_SINGLE_EXT(2, ftm_spk_rev_text);
+static int ftm_spk_rev_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int rev = 0;
+	int ret;
+	int retries = I2C_RETRIES;
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	#else
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	#endif
+	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
+
+retry:
+	ret = regmap_read(tfa98xx->regmap, 0x03, &rev);
+	if (ret < 0 || !is_tfa98xx_series(rev)) {
+		pr_err("%s i2c error at retries left: %d, rev:0x%x\n", __func__, retries, rev);
+		if (retries) {
+			retries--;
+			msleep(I2C_RETRY_DELAY);
+			goto retry;
+		}
+	}
+
+	rev =  rev & 0xff;
+	pr_info("%s: ID revision 0x%04x\n", __func__, rev);
+	if (is_tfa98xx_series(rev)) {
+		ucontrol->value.integer.value[0] = 1;
+	} else {
+		ucontrol->value.integer.value[0] = 0;
+	}
+
+	return 0;
+}
+
+static int ftm_spk_rev_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static const struct snd_kcontrol_new ftm_spk_rev_controls[] = {
+	SOC_ENUM_EXT("SPK_Pa Revision", ftm_spk_rev_enum,
+			ftm_spk_rev_get, ftm_spk_rev_put),
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 struct tfa98xx_rate {
 	unsigned int rate;
@@ -115,12 +207,47 @@ static const struct tfa98xx_rate rate_to_fssel[] = {
 	{ 48000, 8 },
 };
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+unsigned short tfa98xx_vol_value = 0;
+static int tfa98xx_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int tfa98xx_volume_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
+	int err = 0;
+
+	tfa98xx_vol_value = ucontrol->value.integer.value[0];
+
+	printk("%s: volume: %d\n", __func__, tfa98xx_vol_value);
+
+	mutex_lock(&tfa98xx->dsp_lock);
+	err = tfa98xx_set_volume_level_v6(tfa98xx->tfa, tfa98xx_vol_value);
+	if (err) {
+		printk("%s: set volume error, code:%d\n", __func__, err);
+	} else {
+		printk("%s: set volume ok\n", __func__);
+	}
+	mutex_unlock(&tfa98xx->dsp_lock);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new tfa98xx_snd_controls[] = {
+	SOC_SINGLE_EXT("TFA98XX Volume", SND_SOC_NOPM, 0, 0xff, 0,
+		       tfa98xx_volume_get, tfa98xx_volume_set),
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 
 static inline char *tfa_cont_profile_name(struct tfa98xx *tfa98xx, int prof_idx)
 {
 	if (tfa98xx->tfa->cnt == NULL)
 		return NULL;
-	return tfaContProfileName(tfa98xx->tfa->cnt, tfa98xx->tfa->dev_idx, prof_idx);
+	return tfaContProfileName_v6(tfa98xx->tfa->cnt, tfa98xx->tfa->dev_idx, prof_idx);
 }
 
 static enum tfa_error tfa98xx_write_re25(struct tfa_device *tfa, int value)
@@ -141,16 +268,78 @@ static enum tfa_error tfa98xx_write_re25(struct tfa_device *tfa, int value)
 	return err;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static  struct dentry *tfa98xx_debugfs;
+#define TFA98XX_DEBUG_FS_NAME "ftm_tfa98xx"
+int ftm_mode = 0;
+static char ftm_load_file[15] = "load_file_ok";
+static char ftm_clk[9] = "clk_ok";
+char ftm_SpeakerCalibration[17] = "calibration_ok";
+static char ftm_path[15] = "open_path_ok";
+char ftm_spk_resistance[24] = "speaker_resistance_ok";
+static char ftm_tfa98xx_flag[5] = "fail";
+
+#ifndef BOOT_MODE_FACTORY
+#define BOOT_MODE_FACTORY 3
+#endif
+
+extern int get_boot_mode(void);
+
+static int kernel_debug_open(struct inode *inode, struct file *file)
+{
+	pr_info("%s \n", __FUNCTION__);
+	return 0;
+}
+
+static ssize_t kernel_debug_read(struct file *file, char __user *buf,
+                                 size_t count, loff_t *pos)
+{
+/* /sys/kernel/debug/ftm_tfa98xx */
+	const int size = 1024;
+	char buffer[size];
+	int n = 0;
+
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_load_file);
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_clk);
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_SpeakerCalibration);
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_path);
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_spk_resistance);
+	n += scnprintf(buffer + n, size - n, "%s ", ftm_tfa98xx_flag);
+	n += scnprintf(buffer + n, size - n, "%d ", ftm_mode);
+
+	return simple_read_from_buffer(buf, count, pos, buffer, n);
+}
+
+static ssize_t kernel_debug_write(struct file *f, const char __user *buf,
+                                  size_t count, loff_t *offset)
+{
+	pr_info("%s \n", __FUNCTION__);
+	return 0;
+}
+
+static const struct file_operations tfa98xx_debug_ops =
+{
+	.open = kernel_debug_open,
+	.read = kernel_debug_read,
+	.write = kernel_debug_write,
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 /* Wrapper for tfa start */
 static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profile, int vstep)
 {
 	enum tfa_error err;
 	ktime_t start_time, stop_time;
 	u64 delta_time;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	int ready = 0;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	if (trace_level & 8) {
 		start_time = ktime_get_boottime();
 	}
+
+	dev_info(&tfa98xx->i2c->dev, "tfa98xx_tfa_start enter\n");
 
 	err = tfa_dev_start(tfa98xx->tfa, next_profile, vstep);
 
@@ -185,19 +374,28 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 	 */
 	tfa98xx_interrupt_enable(tfa98xx, true);
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (ftm_mode == BOOT_MODE_FACTORY) {
+		tfa98xx_dsp_system_stable_v6(tfa98xx->tfa, &ready);
+		if (!ready) {
+			strcpy(ftm_clk, "clk_fail");
+		}
+	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 	return err;
 }
 
 static int tfa98xx_input_open(struct input_dev *dev)
 {
 	struct tfa98xx *tfa98xx = input_get_drvdata(dev);
-	dev_dbg(tfa98xx->codec->dev, "opening device file\n");
+	dev_info(tfa98xx->codec->dev, "opening device file\n");
 
 	/* note: open function is called only once by the framework.
 	 * No need to count number of open file instances.
 	 */
 	if (tfa98xx->dsp_fw_state != TFA98XX_DSP_FW_OK) {
-		dev_dbg(&tfa98xx->i2c->dev,
+		dev_info(&tfa98xx->i2c->dev,
 			"DSP not loaded, cannot start tap-detection\n");
 		return -EIO;
 	}
@@ -213,7 +411,7 @@ static void tfa98xx_input_close(struct input_dev *dev)
 {
 	struct tfa98xx *tfa98xx = input_get_drvdata(dev);
 
-	dev_dbg(tfa98xx->codec->dev, "closing device file\n");
+	dev_info(tfa98xx->codec->dev, "closing device file\n");
 
 	/* Note: close function is called if the device is unregistered */
 
@@ -424,7 +622,7 @@ static int tfa98xx_dbgfs_temp_get(void *data, u64 *val)
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
 
 	mutex_lock(&tfa98xx->dsp_lock);
-	*val = tfa98xx_get_exttemp(tfa98xx->tfa);
+	*val = tfa98xx_get_exttemp_v6(tfa98xx->tfa);
 	mutex_unlock(&tfa98xx->dsp_lock);
 
 	pr_debug("[0x%x] TEMP : %llu\n", tfa98xx->i2c->addr, *val);
@@ -438,7 +636,7 @@ static int tfa98xx_dbgfs_temp_set(void *data, u64 val)
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
 
 	mutex_lock(&tfa98xx->dsp_lock);
-	tfa98xx_set_exttemp(tfa98xx->tfa, (short)val);
+	tfa98xx_set_exttemp_v6(tfa98xx->tfa, (short)val);
 	mutex_unlock(&tfa98xx->dsp_lock);
 
 	pr_debug("[0x%x] TEMP < %llu\n", tfa98xx->i2c->addr, val);
@@ -471,7 +669,7 @@ static ssize_t tfa98xx_dbgfs_start_set(struct file *file,
 		return -EINVAL;
 
 	mutex_lock(&tfa98xx->dsp_lock);
-	ret = tfa_calibrate(tfa98xx->tfa);
+	ret = tfa_calibrate_v6(tfa98xx->tfa);
 	if (ret == tfa_error_ok)
 		ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
 	if (ret == tfa_error_ok)
@@ -488,6 +686,41 @@ static ssize_t tfa98xx_dbgfs_start_set(struct file *file,
 	return count;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static int tfa98xx_speaker_recalibration_v6(struct tfa_device *tfa, int *speakerImpedance)
+{
+	int err, error = Tfa98xx_Error_Ok;
+	int cal_profile = -1;
+	int profile = -1;
+
+	/* Do not open/close tfa98xx: not required by tfa_clibrate */
+	error = tfa_calibrate_v6(tfa);
+	msleep_interruptible(25);
+
+	cal_profile = tfaContGetCalProfile_v6(tfa);
+	if (cal_profile >= 0) {
+		profile = cal_profile;
+	} else {
+		profile = 0;
+	}
+	pr_err("%s profile=%d\n", __func__, profile);
+
+	error = tfaRunSpeakerBoost_v6(tfa, 1, profile); /* No force coldstart (with profile 0) */
+	if(error) {
+		pr_err("%s Calibration failed (error = %d)\n", __func__, error);
+		*speakerImpedance = 0;
+	} else {
+		pr_err("%s Calibration sucessful! \n", __func__);
+		*speakerImpedance = tfa->mohm[0];
+		if (TFA_GET_BF(tfa, PWDN) != 0) {
+			   err = tfa98xx_powerdown_v6(tfa, 0);  //leave power off state
+		   }
+		tfaRunUnmute_v6(tfa);	/* unmute */
+	}
+	return error;
+}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 				     char __user *user_buf, size_t count,
 				     loff_t *ppos)
@@ -497,25 +730,41 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 	char *str;
 	uint16_t status;
 	int ret;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	int calibrate_done = 0;
+	int speakerImpedance = 0;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	mutex_lock(&tfa98xx->dsp_lock);
 
 	/* Need to ensure DSP is access-able, use mtp read access for this
 	 * purpose
 	 */
-	ret = tfa98xx_get_mtp(tfa98xx->tfa, &status);
+	ret = tfa98xx_get_mtp_v6(tfa98xx->tfa, &status);
 	if (ret) {
 		ret = -EIO;
 		pr_err("[0x%x] MTP read failed\n", tfa98xx->i2c->addr);
 		goto r_c_err;
 	}
 
-	ret = tfaRunSpeakerCalibration(tfa98xx->tfa);
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	ret = tfaRunSpeakerCalibration_result_v6(tfa98xx->tfa, &calibrate_done);
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+	ret = tfaRunSpeakerCalibration_v6(tfa98xx->tfa);
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	if (ret) {
 		ret = -EIO;
 		pr_err("[0x%x] calibration failed\n", tfa98xx->i2c->addr);
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 		goto r_c_err;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	}
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (1 == calibrate_done) {
+		tfa98xx_speaker_recalibration_v6(tfa98xx->tfa, &speakerImpedance);
+	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
@@ -524,6 +773,11 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		goto r_c_err;
 	}
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	ret = snprintf(str, PAGE_SIZE, " Prim:%d mOhms, Sec:%d mOhms\n",
+					speakerImpedance,
+					tfa98xx->tfa->mohm[1]);
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
 	if (tfa98xx->tfa->spkr_count > 1) {
 		ret = snprintf(str, PAGE_SIZE,
 		              "Prim:%d mOhms, Sec:%d mOhms\n",
@@ -534,8 +788,9 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		              "Prim:%d mOhms\n",
 		              tfa98xx->tfa->mohm[0]);
 	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
-	pr_debug("[0x%x] calib_done: %s", tfa98xx->i2c->addr, str);
+	pr_info("[0x%x] calib_done: %s", tfa98xx->i2c->addr, str);
 
 	if (ret < 0)
 		goto r_err;
@@ -590,7 +845,7 @@ static ssize_t tfa98xx_dbgfs_dsp_state_get(struct file *file,
 		str = "Invalid\n";
 	}
 
-	pr_debug("[0x%x] dsp_state : %s\n", tfa98xx->i2c->addr, str);
+	pr_info("[0x%x] dsp_state : %s\n", tfa98xx->i2c->addr, str);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 	return ret;
@@ -667,7 +922,7 @@ static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
 		str = "Invalid\n";
 	}
 
-	pr_debug("[0x%x] fw_state : %s", tfa98xx->i2c->addr, str);
+	pr_info("[0x%x] fw_state : %s", tfa98xx->i2c->addr, str);
 
 	return simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 }
@@ -700,7 +955,7 @@ static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 	error = dsp_msg_read(tfa98xx->tfa, count, buffer);
 	mutex_unlock(&tfa98xx->dsp_lock);
 	if (error != Tfa98xx_Error_Ok) {
-		pr_debug("[0x%x] dsp_msg_read error: %d\n", tfa98xx->i2c->addr, error);
+		pr_info("[0x%x] dsp_msg_read error: %d\n", tfa98xx->i2c->addr, error);
 		kfree(buffer);
 		return -EFAULT;
 	}
@@ -740,12 +995,14 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 	}
 	msg_file->size = count;
 
-	if (copy_from_user(msg_file->data, user_buf, count))
+	if (copy_from_user(msg_file->data, user_buf, count)) {
+		kfree(msg_file);
 		return -EFAULT;
+	}
 
 	mutex_lock(&tfa98xx->dsp_lock);
 	if ((msg_file->data[0] == 'M') && (msg_file->data[1] == 'G')) {
-		error = tfaContWriteFile(tfa98xx->tfa, msg_file, 0, 0); /* int vstep_idx, int vstep_msg_idx both 0 */
+		error = tfaContWriteFile_v6(tfa98xx->tfa, msg_file, 0, 0); /* int vstep_idx, int vstep_msg_idx both 0 */
 		if (error != Tfa98xx_Error_Ok) {
 			pr_debug("[0x%x] tfaContWriteFile error: %d\n", tfa98xx->i2c->addr, error);
 			err = -EIO;
@@ -771,7 +1028,7 @@ static int tfa98xx_dbgfs_pga_gain_get(void *data, u64 *val)
 {
 	struct i2c_client *i2c = (struct i2c_client *)data;
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
-	unsigned int value;
+	int value;
 
 	value = tfa_get_pga_gain(tfa98xx->tfa);
 	if (value < 0)
@@ -977,7 +1234,7 @@ static int add_sr_to_profile(struct tfa98xx *tfa98xx, char *basename, int len, i
 	list_for_each_entry(bprof, &profile_list, list) {
 		if ((len == bprof->len) && (0 == strncmp(bprof->basename, basename, len))) {
 			/* add supported samplerate for this profile */
-			sr = tfa98xx_get_profile_sr(tfa98xx->tfa, profile);
+			sr = tfa98xx_get_profile_sr_v6(tfa98xx->tfa, profile);
 			if (!sr) {
 				pr_err("unable to identify supported sample rate for %s\n", bprof->basename);
 				return -1;
@@ -993,7 +1250,7 @@ static int add_sr_to_profile(struct tfa98xx *tfa98xx, char *basename, int len, i
 			/* enter the (container)profile for this samplerate at the corresponding index */
 			bprof->sr_rate_sup[idx] = profile;
 
-			pr_debug("added profile:samplerate = [%d:%d] for mixer profile: %s\n", profile, sr, bprof->basename);
+			pr_info("added profile:samplerate = [%d:%d] for mixer profile: %s\n", profile, sr, bprof->basename);
 		}
 	}
 
@@ -1027,7 +1284,7 @@ static int tfa98xx_get_vstep(struct snd_kcontrol *kcontrol,
 		int vstep = tfa98xx->prof_vsteps[profile];
 
 		ucontrol->value.integer.value[tfa98xx->tfa->dev_idx] =
-				tfacont_get_max_vstep(tfa98xx->tfa, profile)
+				tfacont_get_max_vstep_v6(tfa98xx->tfa, profile)
 				- vstep - 1;
 	}
 	mutex_unlock(&tfa98xx_mutex);
@@ -1062,7 +1319,7 @@ static int tfa98xx_set_vstep(struct snd_kcontrol *kcontrol,
 		int value = ucontrol->value.integer.value[tfa98xx->tfa->dev_idx];
 
 		vstep = tfa98xx->prof_vsteps[profile];
-		vsteps = tfacont_get_max_vstep(tfa98xx->tfa, profile);
+		vsteps = tfacont_get_max_vstep_v6(tfa98xx->tfa, profile);
 
 		if (vstep == vsteps - value - 1)
 			continue;
@@ -1080,14 +1337,14 @@ static int tfa98xx_set_vstep(struct snd_kcontrol *kcontrol,
 			/* this is the active profile, program the new vstep */
 			tfa98xx->vstep = new_vstep;
 			mutex_lock(&tfa98xx->dsp_lock);
-			tfa98xx_dsp_system_stable(tfa98xx->tfa, &ready);
+			tfa98xx_dsp_system_stable_v6(tfa98xx->tfa, &ready);
 
 			if (ready) {
 				err = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
 				if (err) {
 					pr_err("Write vstep error: %d\n", err);
 				} else {
-					pr_debug("Succesfully changed vstep index!\n");
+					pr_info("Succesfully changed vstep index!\n");
 					change = 1;
 				}
 			}
@@ -1096,7 +1353,7 @@ static int tfa98xx_set_vstep(struct snd_kcontrol *kcontrol,
 #ifndef TFA98XX_ALSA_CTRL_PROF_CHG_ON_VOL
 		}
 #endif
-		pr_debug("%d: vstep:%d, (control value: %d) - profile %d\n",
+		pr_info("%d: vstep:%d, (control value: %d) - profile %d\n",
 			tfa98xx->tfa->dev_idx, new_vstep, value, profile);
 	}
 
@@ -1131,8 +1388,8 @@ static int tfa98xx_info_vstep(struct snd_kcontrol *kcontrol,
 	uinfo->count = tfa98xx_device_count;
 	mutex_unlock(&tfa98xx_mutex);
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max(0, tfacont_get_max_vstep(tfa98xx->tfa, profile) - 1);
-	pr_debug("vsteps count: %d [prof=%d]\n", tfacont_get_max_vstep(tfa98xx->tfa, profile),
+	uinfo->value.integer.max = max(0, tfacont_get_max_vstep_v6(tfa98xx->tfa, profile) - 1);
+	pr_info("vsteps count: %d [prof=%d]\n", tfacont_get_max_vstep_v6(tfa98xx->tfa, profile),
 			profile);
 	return 0;
 }
@@ -1176,11 +1433,12 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 		pr_err("tfa98xx: sample rate [%d] not supported for this mixer profile [%d].\n", tfa98xx->rate, new_profile);
 		return 0;
 	}
-	pr_debug("selected container profile [%d]\n", prof_idx);
+	pr_info("selected container profile [%d]\n", prof_idx);
 
 	/* update mixer profile */
 	tfa98xx_mixer_profile = new_profile;
 
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 	mutex_lock(&tfa98xx_mutex);
 	list_for_each_entry(tfa98xx, &tfa98xx_device_list, list) {
 		int err;
@@ -1192,14 +1450,14 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 
 		/* Don't call tfa_dev_start() if there is no clock. */
 		mutex_lock(&tfa98xx->dsp_lock);
-		tfa98xx_dsp_system_stable(tfa98xx->tfa, &ready);
+		tfa98xx_dsp_system_stable_v6(tfa98xx->tfa, &ready);
 		if (ready) {
 			/* Also re-enables the interrupts */
 			err = tfa98xx_tfa_start(tfa98xx, prof_idx, tfa98xx->vstep);
 			if (err) {
 				pr_info("Write profile error: %d\n", err);
 			} else {
-				pr_debug("Changed to profile %d (vstep = %d)\n",
+				pr_info("Changed to profile %d (vstep = %d)\n",
 				         prof_idx, tfa98xx->vstep);
 				change = 1;
 			}
@@ -1222,6 +1480,9 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 	}
 
 	mutex_unlock(&tfa98xx_mutex);
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+	change = 1;
+#endif /*CONFIG_PRODUCT_REALME_RMX1901*/
 
 	return change;
 }
@@ -1285,9 +1546,9 @@ static int tfa98xx_set_stop_ctl(struct snd_kcontrol *kcontrol,
 		int ready = 0;
 		int i = tfa98xx->tfa->dev_idx;
 
-		pr_debug("%d: %ld\n", i, ucontrol->value.integer.value[i]);
+		pr_info("%d: %ld\n", i, ucontrol->value.integer.value[i]);
 
-		tfa98xx_dsp_system_stable(tfa98xx->tfa, &ready);
+		tfa98xx_dsp_system_stable_v6(tfa98xx->tfa, &ready);
 
 		if ((ucontrol->value.integer.value[i] != 0) && ready) {
 			cancel_delayed_work_sync(&tfa98xx->monitor_work);
@@ -1385,7 +1646,7 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 	/* allocate the tfa98xx_controls base on the nr of profiles */
 	nprof = tfa_cnt_get_dev_nprof(tfa98xx->tfa);
 	for (prof = 0; prof < nprof; prof++) {
-		if (tfacont_get_max_vstep(tfa98xx->tfa, prof))
+		if (tfacont_get_max_vstep_v6(tfa98xx->tfa, prof))
 			nr_controls++; /* Playback Volume control */
 	}
 
@@ -1433,9 +1694,9 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 			list_add(&bprofile->list, &profile_list);
 			bprofile->item_id = id++;
 
-			pr_debug("profile added [%d]: %s\n", bprofile->item_id, bprofile->basename);
+			pr_info("profile added [%d]: %s\n", bprofile->item_id, bprofile->basename);
 
-			if (tfacont_get_max_vstep(tfa98xx->tfa, prof)) {
+			if (tfacont_get_max_vstep_v6(tfa98xx->tfa, prof)) {
 				name = devm_kzalloc(tfa98xx->codec->dev, MAX_CONTROL_NAME, GFP_KERNEL);
 				if (!name)
 					return -ENOMEM;
@@ -1566,12 +1827,21 @@ static struct snd_soc_dapm_widget tfa98xx_dapm_widgets_saam[] = {
 	SND_SOC_DAPM_INPUT("SAAM MIC"),
 };
 
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 static struct snd_soc_dapm_widget tfa9888_dapm_inputs[] = {
 	SND_SOC_DAPM_INPUT("DMIC1"),
 	SND_SOC_DAPM_INPUT("DMIC2"),
 	SND_SOC_DAPM_INPUT("DMIC3"),
 	SND_SOC_DAPM_INPUT("DMIC4"),
 };
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+static struct snd_soc_dapm_widget tfa9888_dapm_inputs[] = {
+	SND_SOC_DAPM_INPUT("TFA98XX_DMIC1"),
+	SND_SOC_DAPM_INPUT("TFA98XX_DMIC2"),
+	SND_SOC_DAPM_INPUT("TFA98XX_DMIC3"),
+	SND_SOC_DAPM_INPUT("TFA98XX_DMIC4"),
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 static const struct snd_soc_dapm_route tfa98xx_dapm_routes_common[] = {
 	{ "OUTL", NULL, "AIF IN" },
@@ -1586,12 +1856,21 @@ static const struct snd_soc_dapm_route tfa98xx_dapm_routes_stereo[] = {
 	{ "OUTR", NULL, "AIF IN" },
 };
 
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 static const struct snd_soc_dapm_route tfa9888_input_dapm_routes[] = {
 	{ "AIF OUT", NULL, "DMIC1" },
 	{ "AIF OUT", NULL, "DMIC2" },
 	{ "AIF OUT", NULL, "DMIC3" },
 	{ "AIF OUT", NULL, "DMIC4" },
 };
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+static const struct snd_soc_dapm_route tfa9888_input_dapm_routes[] = {
+	{ "AIF OUT", NULL, "TFA98XX_DMIC1" },
+	{ "AIF OUT", NULL, "TFA98XX_DMIC2" },
+	{ "AIF OUT", NULL, "TFA98XX_DMIC3" },
+	{ "AIF OUT", NULL, "TFA98XX_DMIC4" },
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0)
 static struct snd_soc_dapm_context *snd_soc_codec_get_dapm(struct snd_soc_codec *codec)
@@ -1651,7 +1930,7 @@ static void tfa98xx_add_widgets(struct tfa98xx *tfa98xx)
 }
 
 /* I2C wrapper functions */
-enum Tfa98xx_Error tfa98xx_write_register16(struct tfa_device *tfa,
+enum Tfa98xx_Error tfa98xx_write_register16_v6(struct tfa_device *tfa,
 					unsigned char subaddress,
 					unsigned short value)
 {
@@ -1693,7 +1972,7 @@ retry:
 	return error;
 }
 
-enum Tfa98xx_Error tfa98xx_read_register16(struct tfa_device *tfa,
+enum Tfa98xx_Error tfa98xx_read_register16_v6(struct tfa_device *tfa,
 					unsigned char subaddress,
 					unsigned short *val)
 {
@@ -1780,7 +2059,7 @@ tfa98xx_writeread_dsp(struct tfa_device *tfa, int command_length, void *command_
 	return Tfa98xx_Error_Not_Supported;
 }
 
-enum Tfa98xx_Error tfa98xx_read_data(struct tfa_device *tfa,
+enum Tfa98xx_Error tfa98xx_read_data_v6(struct tfa_device *tfa,
 				unsigned char reg,
 				int len, unsigned char value[])
 {
@@ -1838,7 +2117,7 @@ enum Tfa98xx_Error tfa98xx_read_data(struct tfa_device *tfa,
 	return error;
 }
 
-enum Tfa98xx_Error tfa98xx_write_raw(struct tfa_device *tfa,
+enum Tfa98xx_Error tfa98xx_write_raw_v6(struct tfa_device *tfa,
 				int len,
 				const unsigned char data[])
 {
@@ -1974,7 +2253,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 		return;
 	}
 
-	pr_debug("loaded %s - size: %zu\n", fw_name, cont->size);
+	pr_info("loaded %s - size: %zu\n", fw_name, cont->size);
 
 	mutex_lock(&tfa98xx_mutex);
 	if (tfa98xx_container == NULL) {
@@ -1990,15 +2269,18 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 		memcpy(container, cont->data, container_size);
 		release_firmware(cont);
 
-		pr_debug("%.2s%.2s\n", container->version, container->subversion);
-		pr_debug("%.8s\n", container->customer);
-		pr_debug("%.8s\n", container->application);
-		pr_debug("%.8s\n", container->type);
-		pr_debug("%d ndev\n", container->ndev);
-		pr_debug("%d nprof\n", container->nprof);
+		pr_info("%.2s%.2s\n", container->version, container->subversion);
+		pr_info("%.8s\n", container->customer);
+		pr_info("%.8s\n", container->application);
+		pr_info("%.8s\n", container->type);
+		pr_info("%d ndev\n", container->ndev);
+		pr_info("%d nprof\n", container->nprof);
 
-		tfa_err = tfa_load_cnt(container, container_size);
+		tfa_err = tfa_load_cnt_v6(container, container_size);
 		if (tfa_err != tfa_error_ok) {
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+			strcpy(ftm_load_file, "load_file_fail");
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 			mutex_unlock(&tfa98xx_mutex);
 			kfree(container);
 			dev_err(tfa98xx->dev, "Cannot load container file, aborting\n");
@@ -2007,7 +2289,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 
 		tfa98xx_container = container;
 	} else {
-		pr_debug("container file already loaded...\n");
+		pr_info("container file already loaded...\n");
 		container = tfa98xx_container;
 		release_firmware(cont);
 	}
@@ -2039,7 +2321,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	tfa98xx->tfa->verbose = trace_level & 1;
 
 	/* prefix is the application name from the cnt */
-	tfa_cnt_get_app_name(tfa98xx->tfa, tfa98xx->fw.name);
+	tfa_cnt_get_app_name_v6(tfa98xx->tfa, tfa98xx->fw.name);
 
 	/* set default profile/vstep */
 	tfa98xx->profile = 0;
@@ -2066,7 +2348,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	}
 
 	tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_OK;
-	pr_debug("Firmware init complete\n");
+	pr_info("Firmware init complete\n");
 
 	if (no_start != 0)
 		return;
@@ -2078,9 +2360,15 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	tfa98xx_inputdev_check_register(tfa98xx);
 
 	if (tfa_is_cold(tfa98xx->tfa) == 0) {
-		pr_debug("Warning: device 0x%.2x is still warm\n", tfa98xx->i2c->addr);
-		tfa_reset(tfa98xx->tfa);
+		pr_info("Warning: device 0x%.2x is still warm\n", tfa98xx->i2c->addr);
+		tfa_reset_v6(tfa98xx->tfa);
 	}
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (tfa98xx->flags & TFA98XX_FLAG_TDM_DEVICE) {
+		return;
+	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	/* Preload settings using internal clock on TFA2 */
 	if (tfa98xx->tfa->tfa_family == 2) {
@@ -2094,9 +2382,28 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	tfa98xx_interrupt_enable(tfa98xx, true);
 }
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+bool is_tfa98xx_series_v6(int rev){
+    bool ret = false;
+    if((rev == 0x80) || (rev == 0x81) || (rev == 0x94)) {
+        ret = true;
+    }
+    return ret;
+}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 static int tfa98xx_load_container(struct tfa98xx *tfa98xx)
 {
 	tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_PENDING;
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if(is_project(OPPO_18383)) {
+		sprintf(fw_name,"tfa98xx_18383.cnt");
+	} else {
+		sprintf(fw_name,"tfa98xx.cnt");
+	}
+	pr_info("loaded cnt: %s\n", fw_name);
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 	                               fw_name, tfa98xx->dev, GFP_KERNEL,
@@ -2182,6 +2489,9 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 	bool failed = false;
 	bool reschedule = false;
 	bool sync= false;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	int value = 0;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	if (tfa98xx->dsp_fw_state != TFA98XX_DSP_FW_OK) {
 		pr_debug("Skipping tfa_dev_start (no FW: %d)\n", tfa98xx->dsp_fw_state);
@@ -2193,13 +2503,31 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		return;
 	}
 
+	dev_info(&tfa98xx->i2c->dev, "tfa98xx_dsp_init enter\n");
+
 	mutex_lock(&tfa98xx->dsp_lock);
 
 	tfa98xx->dsp_init = TFA98XX_DSP_INIT_PENDING;
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	value = tfa_dev_mtp_get(tfa98xx->tfa, TFA_MTP_EX);
+	if (!value) {
+		tfa98xx->profile = tfaContGetCalProfile_v6(tfa98xx->tfa);
+		pr_info("%s force the change to calibration profile for calibrate\n", __func__);
+	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 	if (tfa98xx->init_count < TF98XX_MAX_DSP_START_TRY_COUNT) {
 		/* directly try to start DSP */
 		ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+		if ((!value) && (ret == Tfa98xx_Error_Ok)) {
+			tfa_dev_stop(tfa98xx->tfa);
+			tfa98xx->profile = tfa98xx_mixer_profile;
+			ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
+			pr_info("finish calibrate, replay with profile %d, ret %d\n", tfa98xx->profile, ret);
+		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 		if (ret == Tfa98xx_Error_Not_Supported) {
 			tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_FAIL;
 			dev_err(&tfa98xx->i2c->dev, "Failed starting device\n");
@@ -2213,15 +2541,11 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 					ret, tfa98xx->init_count);
 			reschedule = true;
 		} else {
-			mutex_lock(&tfa98xx_mutex);
-			if (tfa98xx_sync_count < tfa98xx_device_count)
-				tfa98xx_sync_count++;
-			mutex_unlock(&tfa98xx_mutex);
-			sync = true;			
+			sync = true;
 
 			/* Subsystem ready, tfa init complete */
 			tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
-			dev_dbg(&tfa98xx->i2c->dev,
+			dev_info(&tfa98xx->i2c->dev,
 						"tfa_dev_start success (%d)\n",
 						tfa98xx->init_count);
 			/* cancel other pending init works */
@@ -2247,6 +2571,11 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		/* cancel other pending init works */
 		cancel_delayed_work(&tfa98xx->init_work);
 		tfa98xx->init_count = 0;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+		if (ftm_mode == BOOT_MODE_FACTORY) {
+			strcpy(ftm_path, "open_path_fail");
+		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	}
 	mutex_unlock(&tfa98xx->dsp_lock);
 
@@ -2254,6 +2583,10 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		/* check if all devices have started */
 		bool do_sync;
 		mutex_lock(&tfa98xx_mutex);
+
+		if (tfa98xx_sync_count < tfa98xx_device_count)
+			tfa98xx_sync_count++;
+
 		do_sync = (tfa98xx_sync_count >= tfa98xx_device_count);
 		mutex_unlock(&tfa98xx_mutex);
 
@@ -2262,7 +2595,17 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 			tfa98xx_sync_count = 0;
 			list_for_each_entry(tfa98xx, &tfa98xx_device_list, list) {
 				mutex_lock(&tfa98xx->dsp_lock);
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 				tfa_dev_set_state(tfa98xx->tfa, TFA_STATE_UNMUTE);
+#else
+				if (!g_speaker_resistance_fail) {
+					pr_info("set umute state\n");
+					tfa_dev_set_state(tfa98xx->tfa, TFA_STATE_UNMUTE);
+				} else {
+					pr_err("set mute state for resistance out of range!\n");
+					tfa_dev_set_state(tfa98xx->tfa, TFA_STATE_MUTE);
+				}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 				/*
 				 * start monitor thread to check IC status bit
@@ -2277,6 +2620,13 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 			}
 
 		}
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+		if (ftm_mode == BOOT_MODE_FACTORY) {
+			pr_info("finish for ftm ringtone\n");
+			strcpy(ftm_tfa98xx_flag, "ok");
+		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	}
 
 
@@ -2391,7 +2741,7 @@ static int tfa98xx_startup(struct snd_pcm_substream *substream,
 			/* Check which sample rate is supported with current profile,
 			 * and enforce this.
 			 */
-			sr = tfa98xx_get_profile_sr(tfa98xx->tfa, prof);
+			sr = tfa98xx_get_profile_sr_v6(tfa98xx->tfa, prof);
 			if (!sr)
 				dev_info(codec->dev, "Unable to identify supported sample rate\n");
 
@@ -2432,7 +2782,7 @@ static int tfa98xx_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(dai->codec);
 	struct snd_soc_codec *codec = dai->codec;
 
-	pr_debug("fmt=0x%x\n", fmt);
+	pr_info("fmt=0x%x\n", fmt);
 
 	/* Supported mode: regular I2S, slave, or PDM */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -2477,7 +2827,7 @@ static int tfa98xx_hw_params(struct snd_pcm_substream *substream,
 
 	/* Supported */
 	rate = params_rate(params);
-	pr_debug("Requested rate: %d, sample size: %d, physical size: %d\n",
+	pr_info("Requested rate: %d, sample size: %d, physical size: %d\n",
 			rate, snd_pcm_format_width(params_format(params)),
 			snd_pcm_format_physical_width(params_format(params)));
 
@@ -2490,7 +2840,7 @@ static int tfa98xx_hw_params(struct snd_pcm_substream *substream,
 		pr_err("tfa98xx: invalid sample rate %d.\n", rate);
 		return -EINVAL;
 	}
-	pr_debug("mixer profile:container profile = [%d:%d]\n", tfa98xx_mixer_profile, prof_idx);
+	pr_info("mixer profile:container profile = [%d:%d]\n", tfa98xx_mixer_profile, prof_idx);
 
 
 	/* update 'real' profile (container profile) */
@@ -2507,10 +2857,10 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 	struct snd_soc_codec *codec = dai->codec;
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 
-	dev_dbg(&tfa98xx->i2c->dev, "%s: state: %d\n", __func__, mute);
+	dev_info(&tfa98xx->i2c->dev, "%s: state: %d\n", __func__, mute);
 
 	if (no_start) {
-		pr_debug("no_start parameter set no tfa_dev_start or tfa_dev_stop, returning\n");
+		pr_info("no_start parameter set no tfa_dev_start or tfa_dev_stop, returning\n");
 		return 0;
 	}
 
@@ -2545,9 +2895,15 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 			tfa98xx->cstream = 1;
 
 		/* Start DSP */
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 		if (tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING)
 			queue_delayed_work(tfa98xx->tfa98xx_wq,
 			                   &tfa98xx->init_work, 0);
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+		if (tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING) {
+			tfa98xx_dsp_init(tfa98xx);
+		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	}
 
 	return 0;
@@ -2581,21 +2937,26 @@ static struct snd_soc_dai_driver tfa98xx_dai[] = {
 			 .formats = TFA98XX_FORMATS,
 		 },
 		.ops = &tfa98xx_dai_ops,
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 		.symmetric_rates = 1,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
 		.symmetric_channels = 1,
 		.symmetric_samplebits = 1,
 #endif
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	},
 };
 
 static int tfa98xx_probe(struct snd_soc_codec *codec)
 {
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	int ret = 0;
 
-	pr_debug("\n");
+	pr_info("%s\n", __func__);
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+    tfa98xx_whole_v6 = tfa98xx;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	/* setup work queue, will be used to initial DSP on first boot up */
 	tfa98xx->tfa98xx_wq = create_singlethread_workqueue("tfa98xx");
 	if (!tfa98xx->tfa98xx_wq)
@@ -2609,7 +2970,7 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 	tfa98xx->codec = codec;
 
 	ret = tfa98xx_load_container(tfa98xx);
-	pr_debug("Container loading requested: %d\n", ret);
+	pr_info("Container loading requested: %d\n", ret);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
 	codec->control_data = tfa98xx->regmap;
@@ -2621,8 +2982,18 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 #endif
 	tfa98xx_add_widgets(tfa98xx);
 
-	dev_info(codec->dev, "tfa98xx codec registered (%s)",
-							tfa98xx->fw.name);
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	snd_soc_add_codec_controls(tfa98xx->codec,
+		tfa98xx_snd_controls, ARRAY_SIZE(tfa98xx_snd_controls));
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	snd_soc_add_codec_controls(tfa98xx->codec,
+			ftm_spk_rev_controls, ARRAY_SIZE(ftm_spk_rev_controls));
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
+	dev_info(codec->dev, "tfa98xx codec registered (%s) ret=%d",
+							tfa98xx->fw.name, ret);
 
 	return ret;
 }
@@ -2693,6 +3064,7 @@ static const struct regmap_config tfa98xx_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
+#if 0
 static void tfa98xx_irq_tfa2(struct tfa98xx *tfa98xx)
 {
 	pr_info("\n");
@@ -2705,7 +3077,6 @@ static void tfa98xx_irq_tfa2(struct tfa98xx *tfa98xx)
 	queue_delayed_work(tfa98xx->tfa98xx_wq, &tfa98xx->interrupt_work, 0);
 }
 
-
 static irqreturn_t tfa98xx_irq(int irq, void *data)
 {
 	struct tfa98xx *tfa98xx = data;
@@ -2715,6 +3086,7 @@ static irqreturn_t tfa98xx_irq(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static int tfa98xx_ext_reset(struct tfa98xx *tfa98xx)
 {
@@ -2727,6 +3099,7 @@ static int tfa98xx_ext_reset(struct tfa98xx *tfa98xx)
 	return 0;
 }
 
+#if 0
 static int tfa98xx_parse_dt(struct device *dev, struct tfa98xx *tfa98xx,
 		struct device_node *np) {
 	tfa98xx->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
@@ -2739,6 +3112,7 @@ static int tfa98xx_parse_dt(struct device *dev, struct tfa98xx *tfa98xx,
 
 	return 0;
 }
+#endif
 
 static ssize_t tfa98xx_reg_write(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
@@ -2769,7 +3143,7 @@ static ssize_t tfa98xx_rw_write(struct file *filp, struct kobject *kobj,
 
 	data = kmalloc(count+1, GFP_KERNEL);
 	if (data == NULL) {
-		pr_debug("can not allocate memory\n");
+		pr_info("can not allocate memory\n");
 		return  -ENOMEM;
 	}
 
@@ -2856,12 +3230,15 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_dai_driver *dai;
 	struct tfa98xx *tfa98xx;
-	struct device_node *np = i2c->dev.of_node;
-	int irq_flags;
+	//struct device_node *np = i2c->dev.of_node;
+	//int irq_flags;
 	unsigned int reg;
 	int ret;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	int i = 0;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
-	pr_info("addr=0x%x\n", i2c->addr);
+	pr_info("%s: addr=0x%x\n", __func__, i2c->addr);
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
 		dev_err(&i2c->dev, "check_functionality failed\n");
@@ -2890,6 +3267,42 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	mutex_init(&tfa98xx->dsp_lock);
 	init_waitqueue_head(&tfa98xx->wq);
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	tfa98xx->tfa98xx_vdd = regulator_get(&i2c->dev, "tfa9890_vdd");
+	if (IS_ERR(tfa98xx->tfa98xx_vdd)) {
+		printk("regulator tfa98xx_vdd get failed\n ");
+		devm_kfree(&i2c->dev, tfa98xx);
+		return PTR_ERR(tfa98xx->tfa98xx_vdd);
+	} else {
+		if (regulator_count_voltages(tfa98xx->tfa98xx_vdd) > 0) {
+			ret = regulator_set_voltage(tfa98xx->tfa98xx_vdd, 1800000,
+					   1800000);
+			if (ret) {
+				dev_err(&i2c->dev,
+					"Regulator set tfa98xx_vdd failed ret=%d\n", ret);
+				return ret;
+			}
+
+			ret = regulator_set_load(tfa98xx->tfa98xx_vdd, 200000);
+			if (ret < 0) {
+				dev_err(&i2c->dev, "failed to set tfa98xx_vdd mode ret = %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	ret = regulator_enable(tfa98xx->tfa98xx_vdd);
+	if (ret) {
+		printk("regulator_enable tfa98xx->tfa98xx_vdd failed\n");
+		devm_kfree(&i2c->dev, tfa98xx);
+		return ret;
+	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	tfa98xx->reset_gpio = -1;
+	tfa98xx->irq_gpio = -1;
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
 	if (np) {
 		ret = tfa98xx_parse_dt(&i2c->dev, tfa98xx, np);
 		if (ret) {
@@ -2904,6 +3317,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		tfa98xx->reset_gpio = -1;
 		tfa98xx->irq_gpio = -1;
 	}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 	if (gpio_is_valid(tfa98xx->reset_gpio)) {
 		ret = devm_gpio_request_one(&i2c->dev, tfa98xx->reset_gpio,
@@ -2923,12 +3337,24 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	tfa98xx_ext_reset(tfa98xx);
 
 	if ((no_start == 0) && (no_reset == 0)) {
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+		for (i = 0; i < 100; i++) {
+			ret = regmap_read(tfa98xx->regmap, 0x03, &reg);
+			if ((ret < 0) || !is_tfa98xx_series_v6(reg & 0xff)) {
+				dev_err(&i2c->dev, "Failed to read Revision register: %d\n", ret);
+				msleep(2);//2ms
+			} else {
+				break;
+			}
+		}
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
 		ret = regmap_read(tfa98xx->regmap, 0x03, &reg);
 		if (ret < 0) {
 			dev_err(&i2c->dev, "Failed to read Revision register: %d\n",
 				ret);
 			return -EIO;
 		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 		switch (reg & 0xff) {
 		case 0x72: /* tfa9872 */
 			pr_info("TFA9872 detected\n");
@@ -3024,7 +3450,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to register TFA98xx: %d\n", ret);
 		return ret;
 	}
-
+#if 0
 	if (gpio_is_valid(tfa98xx->irq_gpio) &&
 		!(tfa98xx->flags & TFA98XX_FLAG_SKIP_INTERRUPTS)) {
 		/* register irq handler */
@@ -3043,11 +3469,20 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		/* disable feature support if gpio was invalid */
 		tfa98xx->flags |= TFA98XX_FLAG_SKIP_INTERRUPTS;
 	}
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 	if (no_start == 0)
 		tfa98xx_debug_init(tfa98xx, i2c);
 #endif
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	tfa98xx_debugfs = debugfs_create_file(TFA98XX_DEBUG_FS_NAME,
+			S_IFREG | S_IRUGO | S_IWUSR, NULL, (void *)TFA98XX_DEBUG_FS_NAME, &tfa98xx_debug_ops);
+	ftm_mode = get_boot_mode();
+	pr_info("ftm_mode=%d\n", ftm_mode);
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 	/* Register the sysfs files for climax backdoor access */
 	ret = device_create_bin_file(&i2c->dev, &dev_attr_rw);
 	if (ret)
@@ -3072,7 +3507,7 @@ static int tfa98xx_i2c_remove(struct i2c_client *i2c)
 {
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
 
-	pr_debug("addr=0x%x\n", i2c->addr);
+	pr_info("addr=0x%x\n", i2c->addr);
 
 	tfa98xx_interrupt_enable(tfa98xx, false);
 

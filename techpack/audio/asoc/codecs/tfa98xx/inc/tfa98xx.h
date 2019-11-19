@@ -117,6 +117,9 @@ struct tfa98xx {
 	unsigned int flags;
 	bool set_mtp_cal;
 	uint16_t cal_data;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	struct regulator *tfa98xx_vdd;
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 };
 
 
