@@ -60,7 +60,11 @@ static unsigned long tx_digital_gain_reg[] = {
 	MSM89XX_CDC_CORE_TX5_VOL_CTL_GAIN,
 };
 
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 #define SDM660_TX_UNMUTE_DELAY_MS 40
+#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#define SDM660_TX_UNMUTE_DELAY_MS 50
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 static int tx_unmute_delay = SDM660_TX_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
 MODULE_PARM_DESC(tx_unmute_delay, "delay to unmute the tx path");
