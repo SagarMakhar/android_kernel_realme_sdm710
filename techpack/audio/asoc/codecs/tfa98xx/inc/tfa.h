@@ -29,7 +29,7 @@ enum tfa_error {
         tfa_error_max       /**< impossible value, max enum */
 };
 
-enum Tfa98xx_Error tfa_write_filters(struct tfa_device *tfa, int prof_idx);
+enum Tfa98xx_Error tfa_write_filters_v6(struct tfa_device *tfa, int prof_idx);
 
 struct tfa_device ** tfa_devs_create(int count);
 void tfa_devs_destroy(int count);

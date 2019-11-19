@@ -7,6 +7,13 @@
  *
  */
 
+/*
+ * tfa_ext.h
+ *
+ *  Created on: Jun 8, 2016
+ *      Author: wim
+ */
+
 #ifndef TFA_SRC_TFA_EXT_H_
 #define TFA_SRC_TFA_EXT_H_
 
@@ -39,6 +46,6 @@ typedef int (*dsp_send_message_t)(struct tfa_device *tfa, int length, const char
 typedef int (*dsp_read_message_t)(struct tfa_device *tfa, int length, char *buf);
 typedef int (*dsp_write_reg_t)(struct tfa_device *tfa, unsigned char subaddress, unsigned short value);
 
-int tfa_ext_register(dsp_write_reg_t tfa_write_reg, dsp_send_message_t tfa_send_message, dsp_read_message_t tfa_read_message, tfa_event_handler_t *tfa_event_handler);
+int tfa_ext_register(dsp_write_reg_t tfa_write_reg_v6, dsp_send_message_t tfa_send_message, dsp_read_message_t tfa_read_message, tfa_event_handler_t *tfa_event_handler);
 
 #endif /* TFA_SRC_TFA_EXT_H_ */
