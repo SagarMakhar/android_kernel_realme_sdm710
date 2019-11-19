@@ -3593,6 +3593,10 @@ static int fastrpc_set_process_info(struct fastrpc_file *fl)
 	fl->tgid = current->tgid;
 	snprintf(strpid, PID_SIZE, "%d", current->pid);
 	buf_size = strlen(current->comm) + strlen("_") + strlen(strpid) + 1;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        if (buf_size < UL_SIZE)
+                buf_size = UL_SIZE;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	fl->debug_buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!fl->debug_buf) {
 		err = -ENOMEM;
