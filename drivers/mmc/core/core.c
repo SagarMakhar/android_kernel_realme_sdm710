@@ -4613,8 +4613,11 @@ void mmc_stop_host(struct mmc_host *host)
 		disable_irq(host->slot.cd_irq);
 
 	host->rescan_disable = 1;
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 	cancel_delayed_work_sync(&host->detect);
-
+#else /*CONFIG_PRODUCT_REALME_RMX1901*/
+	cancel_delayed_work(&host->detect);
+#endif /*CONFIG_PRODUCT_REALME_RMX1901*/
 	/* clear pm flags now and let card drivers set them as needed */
 	host->pm_flags = 0;
 
