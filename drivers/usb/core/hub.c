@@ -109,6 +109,11 @@ static int usb_reset_and_verify_device(struct usb_device *udev);
 static int hub_port_disable(struct usb_hub *hub, int port1, int set_state);
 static bool hub_port_warm_reset_required(struct usb_hub *hub, int port1,
 		u16 portstatus);
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+unsigned int connected_usb_idVendor = 0;
+unsigned int connected_usb_idProduct = 0;
+unsigned int connected_usb_devnum = 0xff;
+#endif
 
 static inline char *portspeed(struct usb_hub *hub, int portstatus)
 {
@@ -2136,6 +2141,14 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (connected_usb_devnum == udev->devnum) {
+		dev_info(&udev->dev, "xiaomi headset removed, devnum %d\n",udev->devnum);
+		connected_usb_idVendor = 0;
+		connected_usb_idProduct = 0;
+		connected_usb_devnum = 0xff;
+	}
+#endif
 
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
@@ -2463,6 +2476,14 @@ int usb_new_device(struct usb_device *udev)
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if ((0x2717 == le16_to_cpu(udev->descriptor.idVendor)) && (0x3801 == le16_to_cpu(udev->descriptor.idProduct))) {
+		connected_usb_idVendor = le16_to_cpu(udev->descriptor.idVendor);
+		connected_usb_idProduct = le16_to_cpu(udev->descriptor.idProduct);
+		connected_usb_devnum = udev->devnum;
+		dev_info(&udev->dev, "xiaomi headset identified, devnum %d\n",udev->devnum);
+	}
+#endif
 
 	/* Tell the world! */
 	announce_device(udev);
@@ -4357,6 +4378,11 @@ static void hub_set_initial_usb2_lpm_policy(struct usb_device *udev)
 
 	if (hub)
 		connect_type = hub->ports[udev->portnum - 1]->connect_type;
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (!udev->bos)
+		return;
+#endif
 
 	if ((udev->bos->ext_cap->bmAttributes & cpu_to_le32(USB_BESL_SUPPORT)) ||
 			connect_type == USB_PORT_CONNECT_TYPE_HARD_WIRED) {
