@@ -241,7 +241,9 @@ static int dp_parser_gpio(struct dp_parser *parser)
 
 		if (!gpio_is_valid(mp->gpio_config[i].gpio)) {
 			pr_err("%s gpio not specified\n", dp_gpios[i]);
+			#ifndef CONFIG_PRODUCT_REALME_RMX1901
 			return -EINVAL;
+			#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 		}
 
 		strlcpy(mp->gpio_config[i].gpio_name, dp_gpios[i],
