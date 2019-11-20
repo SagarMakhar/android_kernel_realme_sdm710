@@ -26,8 +26,18 @@
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#include <linux/moduleparam.h>
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 #include "xhci.h"
 #include "xhci-trace.h"
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static bool usb2_lpm_disable = true;
+module_param(usb2_lpm_disable, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(usb2_lpm_disable, "DISABLE USB2 LPM");
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 /*
  * Allocates a generic ring segment from the ring pool, sets the dma address,
@@ -2326,11 +2336,20 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"xHCI 1.0: support USB2 software lpm");
 		xhci->sw_lpm_support = 1;
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+		if (!usb2_lpm_disable && (temp & XHCI_HLC)) {
+			xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+					"xHCI 1.0: support USB2 hardware lpm");
+			xhci_err(xhci, "xHCI 1.0: support USB2 hardware lpm");
+			xhci->hw_lpm_support = 1;
+		}
+#else
 		if (temp & XHCI_HLC) {
 			xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 					"xHCI 1.0: support USB2 hardware lpm");
 			xhci->hw_lpm_support = 1;
 		}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	}
 
 	port_offset--;
