@@ -49,6 +49,10 @@
 #include "ufs-debugfs.h"
 #include "ufs-qcom.h"
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#include <soc/oppo/device_info.h>
+#endif
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
 
