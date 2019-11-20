@@ -503,7 +503,11 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 		cmd_enc->pp_timeout_report_cnt = PP_TIMEOUT_MAX_TRIALS;
 		frame_event |= SDE_ENCODER_FRAME_EVENT_PANEL_DEAD;
 
+#ifndef CONFIG_PRODUCT_REALME_RMX1901
 		SDE_DBG_DUMP("panic");
+#else /*CONFIG_PRODUCT_REALME_RMX1901*/
+		SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus");
+#endif
 	} else if (cmd_enc->pp_timeout_report_cnt == 1) {
 		/* to avoid flooding, only log first time, and "dead" time */
 		SDE_ERROR_CMDENC(cmd_enc,
