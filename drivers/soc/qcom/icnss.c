@@ -4699,6 +4699,24 @@ static int icnss_get_vbatt_info(struct icnss_priv *priv)
 	return 0;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static void icnss_create_fw_state_kobj(void);
+static ssize_t icnss_show_fw_ready(struct device_driver *driver, char *buf)
+{
+	bool firmware_ready = icnss_is_fw_ready();
+	return sprintf(buf, "%s", (firmware_ready ? "ready" : "not_ready"));
+}
+
+struct driver_attribute fw_ready_attr = {
+	.attr = {
+		.name = "firmware_ready",
+		.mode = S_IRUGO,
+	},
+	.show = icnss_show_fw_ready,
+	//read only so we don't need to impl store func
+};
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 static int icnss_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -4897,6 +4915,10 @@ static int icnss_probe(struct platform_device *pdev)
 
 	init_completion(&priv->unblock_shutdown);
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	icnss_create_fw_state_kobj();
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 	icnss_pr_info("Platform driver probed successfully\n");
 
 	return 0;
@@ -5086,6 +5108,14 @@ static struct platform_driver icnss_driver = {
 		.of_match_table = icnss_dt_match,
 	},
 };
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static void icnss_create_fw_state_kobj(void) {
+	if (driver_create_file(&(icnss_driver.driver), &fw_ready_attr)) {
+		icnss_pr_info("failed to create %s", fw_ready_attr.attr.name);
+	}
+}
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 static int __init icnss_initialize(void)
 {
