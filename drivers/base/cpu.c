@@ -195,7 +195,36 @@ static ssize_t isolate_show(struct device *dev,
 	return rc;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static ssize_t __ref isolate_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
+	int err;
+	int cpuid = cpu->dev.id;
+	unsigned int isolated;
+
+	err = kstrtouint(strstrip((char *)buf), 0, &isolated);
+	if (err)
+		return err;
+
+	if (isolated > 1)
+		return -EINVAL;
+
+	if (isolated)
+		sched_isolate_cpu(cpuid);
+	else
+		sched_unisolate_cpu(cpuid);
+
+	return count;
+}
+
+static DEVICE_ATTR(isolate, 0644, isolate_show, isolate_store);
+#else
 static DEVICE_ATTR_RO(isolate);
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+
 
 static struct attribute *cpu_isolated_attrs[] = {
 	&dev_attr_isolate.attr,
@@ -360,12 +389,29 @@ static ssize_t print_cpus_isolated(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	int n = 0, len = PAGE_SIZE-2;
-
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(cpu_isolated_mask));
+#else
 	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(cpu_isolated_map));
-
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 	return n;
 }
 static DEVICE_ATTR(isolated, 0444, print_cpus_isolated, NULL);
+
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+static ssize_t print_cpus_available(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	int n = 0, len = PAGE_SIZE-2;
+	struct cpumask avail_mask;
+
+	cpumask_andnot(&avail_mask, cpu_online_mask, cpu_isolated_mask);
+	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(&avail_mask));
+
+	return n;
+}
+static DEVICE_ATTR(avail, 0444, print_cpus_available, NULL);
+#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
 
 #ifdef CONFIG_NO_HZ_FULL
 static ssize_t print_cpus_nohz_full(struct device *dev,
@@ -549,6 +595,9 @@ static struct attribute *cpu_root_attrs[] = {
 	&dev_attr_kernel_max.attr,
 	&dev_attr_offline.attr,
 	&dev_attr_isolated.attr,
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	&dev_attr_avail.attr,
+#endif
 #ifdef CONFIG_NO_HZ_FULL
 	&dev_attr_nohz_full.attr,
 #endif
