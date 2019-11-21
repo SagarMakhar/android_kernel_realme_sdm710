@@ -381,18 +381,9 @@ static int fp_get_matched_chip_module(struct device *dev, int fp_id1, int fp_id2
 int opticalfp_irq_handler(struct fp_underscreen_info* tp_info)
 {
     fp_vendor_t fpsensor_type = get_fpsensor_type();
-    if (FP_SILEAD_OPTICAL_70 == fpsensor_type) {
-        return silfp_opticalfp_irq_handler(tp_info);
-    } else if (FP_GOODIX_OPTICAL_95 == fpsensor_type) {
+    if (FP_GOODIX_OPTICAL_95 == fpsensor_type) {
         return gf_opticalfp_irq_handler(tp_info);
-    } 
-#if CONFIG_OPPO_FINGERPRINT_PROJCT == 18041
-    else if (FP_EGIS_OPTICAL_ET713 == fpsensor_type) {
-        printk("0guq_warning  common  type et713 start\n");
-        return egis_opticalfp_irq_handler(tp_info);
-    }
-#endif
-    else {
+    } else {
         return FP_UNKNOWN;
     }
 }
