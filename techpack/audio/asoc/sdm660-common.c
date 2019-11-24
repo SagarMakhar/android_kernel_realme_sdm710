@@ -5833,8 +5833,8 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	pr_info("%s: sond card register success.\n", __func__);
 	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
-	#ifdef CONFIG_PRODUCT_REALME_SDM710
-	if ((pdata->snd_card_val == INT_SND_CARD)) {
+#ifdef CONFIG_PRODUCT_REALME_RMX1901
+	if (pdata->snd_card_val == INT_SND_CARD) {
 		if (msm_cdc_pinctrl_select_sleep_state(pdata->dmic_gpio_p)) {
 			pr_err("%s: set dmic data pin high-z state error\n", __func__);
 		}
