@@ -535,7 +535,7 @@ static int qseecom_scm_call2(uint32_t svc_id, uint32_t tz_cmd_id,
 			smc_id = TZ_OS_APP_SHUTDOWN_ID;
 			desc.arginfo = TZ_OS_APP_SHUTDOWN_ID_PARAM_ID;
 			desc.args[0] = req->app_id;
-			ret = __qseecom_scm_call2_locked(smc_id, &desc);
+			ret = scm_call2(smc_id, &desc);
 			break;
 		}
 		case QSEOS_APP_LOOKUP_COMMAND: {
@@ -1953,6 +1953,7 @@ exit:
 
 	}
 	qseecom.app_block_ref_cnt--;
+	wake_up_interruptible_all(&qseecom.app_block_wq);
 	if (rc)
 		return rc;
 
@@ -2305,23 +2306,15 @@ exit:
  */
 static void __qseecom_reentrancy_check_if_no_app_blocked(uint32_t smc_id)
 {
-	sigset_t new_sigset, old_sigset;
-
 	if (qseecom.qsee_reentrancy_support > QSEE_REENTRANCY_PHASE_0 &&
 		qseecom.qsee_reentrancy_support < QSEE_REENTRANCY_PHASE_3 &&
 		IS_OWNER_TRUSTED_OS(TZ_SYSCALL_OWNER_ID(smc_id))) {
 		/* thread sleep until this app unblocked */
 		while (qseecom.app_block_ref_cnt > 0) {
-			sigfillset(&new_sigset);
-			sigprocmask(SIG_SETMASK, &new_sigset, &old_sigset);
 			mutex_unlock(&app_access_lock);
-			do {
-				if (!wait_event_interruptible(qseecom.app_block_wq,
-					(qseecom.app_block_ref_cnt == 0)))
-					break;
-			} while (1);
+			wait_event_interruptible(qseecom.app_block_wq,
+				(!qseecom.app_block_ref_cnt));
 			mutex_lock(&app_access_lock);
-			sigprocmask(SIG_SETMASK, &old_sigset, NULL);
 		}
 	}
 }
@@ -2334,23 +2327,15 @@ static void __qseecom_reentrancy_check_if_no_app_blocked(uint32_t smc_id)
 static void __qseecom_reentrancy_check_if_this_app_blocked(
 			struct qseecom_registered_app_list *ptr_app)
 {
-	sigset_t new_sigset, old_sigset;
-
 	if (qseecom.qsee_reentrancy_support) {
 		ptr_app->check_block++;
 		while (ptr_app->app_blocked || qseecom.app_block_ref_cnt > 1) {
 			/* thread sleep until this app unblocked */
-			sigfillset(&new_sigset);
-			sigprocmask(SIG_SETMASK, &new_sigset, &old_sigset);
 			mutex_unlock(&app_access_lock);
-			do {
-				if (!wait_event_interruptible(qseecom.app_block_wq,
-					(!ptr_app->app_blocked &&
-					qseecom.app_block_ref_cnt <= 1)))
-					break;
-			} while (1);
+			wait_event_interruptible(qseecom.app_block_wq,
+				(!ptr_app->app_blocked &&
+				qseecom.app_block_ref_cnt <= 1));
 			mutex_lock(&app_access_lock);
-			sigprocmask(SIG_SETMASK, &old_sigset, NULL);
 		}
 		ptr_app->check_block--;
 	}
@@ -3252,7 +3237,7 @@ int __qseecom_process_reentrancy(struct qseecom_command_scm_resp *resp,
 		ret = __qseecom_reentrancy_process_incomplete_cmd(data, resp);
 		ptr_app->app_blocked = false;
 		qseecom.app_block_ref_cnt--;
-		wake_up_interruptible(&qseecom.app_block_wq);
+		wake_up_interruptible_all(&qseecom.app_block_wq);
 		if (ret)
 			pr_err("process_incomplete_cmd failed err: %d\n",
 					ret);
@@ -3444,6 +3429,33 @@ int __boundary_checks_offset(struct qseecom_send_modfd_cmd_req *req,
 		if ((lstnr_resp->resp_len < sizeof(uint32_t)) ||
 			(lstnr_resp->ifd_data[i].cmd_buf_offset >
 			lstnr_resp->resp_len - sizeof(uint32_t))) {
+			pr_err("Invalid offset (lstnr resp len) 0x%x\n",
+				lstnr_resp->ifd_data[i].cmd_buf_offset);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int __boundary_checks_offset_64(struct qseecom_send_modfd_cmd_req *req,
+			struct qseecom_send_modfd_listener_resp *lstnr_resp,
+			struct qseecom_dev_handle *data, int i)
+{
+
+	if ((data->type != QSEECOM_LISTENER_SERVICE) &&
+						(req->ifd_data[i].fd > 0)) {
+		if ((req->cmd_req_len < sizeof(uint64_t)) ||
+			(req->ifd_data[i].cmd_buf_offset >
+			req->cmd_req_len - sizeof(uint64_t))) {
+			pr_err("Invalid offset (req len) 0x%x\n",
+				req->ifd_data[i].cmd_buf_offset);
+			return -EINVAL;
+		}
+	} else if ((data->type == QSEECOM_LISTENER_SERVICE) &&
+					(lstnr_resp->ifd_data[i].fd > 0)) {
+		if ((lstnr_resp->resp_len < sizeof(uint64_t)) ||
+			(lstnr_resp->ifd_data[i].cmd_buf_offset >
+			lstnr_resp->resp_len - sizeof(uint64_t))) {
 			pr_err("Invalid offset (lstnr resp len) 0x%x\n",
 				lstnr_resp->ifd_data[i].cmd_buf_offset);
 			return -EINVAL;
@@ -3811,7 +3823,8 @@ static int __qseecom_update_cmd_buf_64(void *msg, bool cleanup,
 		if (sg_ptr->nents == 1) {
 			uint64_t *update_64bit;
 
-			if (__boundary_checks_offset(req, lstnr_resp, data, i))
+			if (__boundary_checks_offset_64(req, lstnr_resp,
+							data, i))
 				goto err;
 				/* 64bit app uses 64bit address */
 			update_64bit = (uint64_t *) field;
@@ -4712,7 +4725,6 @@ recheck:
 		strlcpy(entry->app_name, app_name, MAX_APP_NAME_SIZE);
 		if (__qseecom_get_fw_size(app_name, &fw_size, &app_arch)) {
 			ret = -EIO;
-			kfree(entry);
 			goto exit_entry_free;
 		}
 		entry->app_arch = app_arch;

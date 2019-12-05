@@ -1541,6 +1541,15 @@ static int qg_get_battery_capacity(struct qpnp_qg *chip, int *soc)
 	return 0;
 }
 
+static int qg_get_battery_capacity_real(struct qpnp_qg *chip, int *soc)
+{
+	mutex_lock(&chip->soc_lock);
+	*soc = chip->msoc;
+	mutex_unlock(&chip->soc_lock);
+
+	return 0;
+}
+
 static int qg_get_charge_counter(struct qpnp_qg *chip, int *charge_counter)
 {
 	int rc, cc_soc = 0;
@@ -1700,6 +1709,9 @@ static int qg_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = qg_get_battery_capacity(chip, &pval->intval);
 		break;
+	case POWER_SUPPLY_PROP_REAL_CAPACITY:
+		rc = qg_get_battery_capacity_real(chip, &pval->intval);
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		rc = qg_get_battery_voltage(chip, &pval->intval);
 		break;
@@ -1816,6 +1828,7 @@ static int qg_property_is_writeable(struct power_supply *psy,
 
 static enum power_supply_property qg_psy_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_REAL_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
@@ -2713,6 +2726,39 @@ static int qg_set_wa_flags(struct qpnp_qg *chip)
 	qg_dbg(chip, QG_DEBUG_PON, "wa_flags = %x\n", chip->wa_flags);
 
 	return 0;
+}
+
+#define SDAM_MAGIC_NUMBER		0x12345678
+static int qg_sanitize_sdam(struct qpnp_qg *chip)
+{
+	int rc = 0;
+	u32 data = 0;
+
+	rc = qg_sdam_read(SDAM_MAGIC, &data);
+	if (rc < 0) {
+		pr_err("Failed to read SDAM rc=%d\n", rc);
+		return rc;
+	}
+
+	if (data == SDAM_MAGIC_NUMBER) {
+		qg_dbg(chip, QG_DEBUG_PON, "SDAM valid\n");
+	} else if (data == 0) {
+		rc = qg_sdam_write(SDAM_MAGIC, SDAM_MAGIC_NUMBER);
+		if (!rc)
+			qg_dbg(chip, QG_DEBUG_PON, "First boot. SDAM initilized\n");
+	} else {
+		/* SDAM has invalid value */
+		rc = qg_sdam_clear();
+		if (!rc) {
+			pr_err("SDAM uninitialized, SDAM reset\n");
+			rc = qg_sdam_write(SDAM_MAGIC, SDAM_MAGIC_NUMBER);
+		}
+	}
+
+	if (rc < 0)
+		pr_err("Failed in SDAM operation, rc=%d\n", rc);
+
+	return rc;
 }
 
 #define ADC_CONV_DLY_512MS		0xA
@@ -3700,6 +3746,12 @@ static int qpnp_qg_probe(struct platform_device *pdev)
 	rc = qg_sdam_init(chip->dev);
 	if (rc < 0) {
 		pr_err("Failed to initialize QG SDAM, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = qg_sanitize_sdam(chip);
+	if (rc < 0) {
+		pr_err("Failed to sanitize SDAM, rc=%d\n", rc);
 		return rc;
 	}
 
