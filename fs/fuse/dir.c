@@ -401,11 +401,12 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	struct inode *inode;
 	struct dentry *newent;
 	bool outarg_valid = true;
+	bool locked;
 
-	fuse_lock_inode(dir);
+	locked = fuse_lock_inode(dir);
 	err = fuse_lookup_name(dir->i_sb, get_node_id(dir), &entry->d_name,
 			       &outarg, &inode);
-	fuse_unlock_inode(dir);
+	fuse_unlock_inode(dir, locked);
 	if (err == -ENOENT) {
 		outarg_valid = false;
 		err = 0;
@@ -1385,6 +1386,7 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
 	u64 attr_version = 0;
+	bool locked;
 
 	if (is_bad_inode(inode))
 		return -EIO;
@@ -1412,9 +1414,9 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 		fuse_read_fill(req, file, ctx->pos, PAGE_SIZE,
 			       FUSE_READDIR);
 	}
-	fuse_lock_inode(inode);
+	locked = fuse_lock_inode(inode);
 	fuse_request_send(fc, req);
-	fuse_unlock_inode(inode);
+	fuse_unlock_inode(inode, locked);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
@@ -1700,6 +1702,19 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 
 	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;
+
+	/* Flush dirty data/metadata before non-truncate SETATTR */
+	if (is_wb && S_ISREG(inode->i_mode) &&
+	    attr->ia_valid &
+			(ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_MTIME_SET |
+			 ATTR_TIMES_SET)) {
+		err = write_inode_now(inode, true);
+		if (err)
+			return err;
+
+		fuse_set_nowrite(inode);
+		fuse_release_nowrite(inode);
+	}
 
 	if (is_truncate) {
 		fuse_set_nowrite(inode);
