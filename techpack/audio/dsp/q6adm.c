@@ -2655,9 +2655,9 @@ int adm_arrange_mch_ep2_map(struct adm_cmd_device_open_v6 *open_v6,
  *
  * Returns 0 on success or error on failure
  */
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #define VOICE_TOPOLOGY_LVIMFQ_TX_DM    0x1000BFF5
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	     int perf_mode, uint16_t bit_width, int app_type, int acdb_id,
@@ -2722,14 +2722,14 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY))
 		rate = 16000;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if ((topology == VOICE_TOPOLOGY_LVIMFQ_TX_DM)
 		&& (rate != ADM_CMD_COPP_OPEN_SAMPLE_RATE_48K)) {
 		pr_info("%s: Change rate %d to 48K for copp 0x%x",
 			__func__, rate, topology);
 		rate = 48000;
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/*
 	 * Routing driver reuses the same adm for streams with the same

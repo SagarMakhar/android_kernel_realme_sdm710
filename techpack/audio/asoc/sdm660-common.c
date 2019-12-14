@@ -232,11 +232,11 @@ static bool msm_swap_gnd_mic(struct snd_soc_codec *codec, bool active);
 static struct wcd_mbhc_config mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	.detect_extn_cable = true,
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	.detect_extn_cable = false,
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
@@ -3479,9 +3479,9 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const char *usb_c_dt = "qcom,msm-mbhc-usbc-audio-supported";
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	pr_info("%s: *** Enter\n", __func__);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct msm_asoc_mach_data),
@@ -3621,17 +3621,17 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	if (pdata->snd_card_val > INT_MAX_SND_CARD)
 		msm_ext_register_audio_notifier(pdev);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	pr_info("%s: sond card register success.\n", __func__);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if (pdata->snd_card_val == INT_SND_CARD) {
 		if (msm_cdc_pinctrl_select_sleep_state(pdata->dmic_gpio_p)) {
 			pr_err("%s: set dmic data pin high-z state error\n", __func__);
 		}
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	return 0;
 err:

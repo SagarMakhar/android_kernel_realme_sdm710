@@ -128,10 +128,10 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 	u16 hs_comp_res;
 	bool is_spl_hs = false;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/*
 	 * Increase micbias to 2.7V to detect headsets with
@@ -268,11 +268,11 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 				wcd_enable_curr_micbias(mbhc,
 						WCD_MBHC_EN_PULLUP);
 			} else {
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 			}
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
@@ -364,10 +364,10 @@ static void wcd_mbhc_detect_plug_type(struct wcd_mbhc *mbhc)
 {
 	struct snd_soc_codec *codec = mbhc->codec;
 	bool micbias1 = false;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
@@ -386,11 +386,11 @@ static void wcd_mbhc_detect_plug_type(struct wcd_mbhc *mbhc)
 		mbhc->mbhc_cb->mbhc_micbias_control(codec, MIC_BIAS_2,
 						    MICB_ENABLE);
 	else
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/* Re-initialize button press completion object */
 	reinit_completion(&mbhc->btn_press_compl);
@@ -398,7 +398,7 @@ static void wcd_mbhc_detect_plug_type(struct wcd_mbhc *mbhc)
 	pr_debug("%s: leave\n", __func__);
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static void wcd_mbhc_detect_plug_type_legacy(struct work_struct *work)
 {
 	struct delayed_work *dwork;
@@ -439,7 +439,7 @@ static void wcd_mbhc_detect_plug_type_legacy(struct work_struct *work)
 
 	pr_info("%s: leave\n", __func__);
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static void wcd_correct_swch_plug(struct work_struct *work)
 {
@@ -454,16 +454,16 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	bool micbias1 = false;
 	int rc, spl_hs_count = 0;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int headset_count = 0;
 	int headphone_count = 0;
 	int high_hph_count = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: enter\n", __func__);
 
@@ -477,9 +477,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	 * is handled with ref-counts by individual codec drivers, there is
 	 * no need to enabale micbias/pullup here
 	 */
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/* Enable HW FSM */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
@@ -493,10 +493,10 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	WCD_MBHC_REG_READ(WCD_MBHC_BTN_RESULT, btn_result);
 	WCD_MBHC_REG_READ(WCD_MBHC_HS_COMP_RESULT, hs_comp_res);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	pr_info("%s: btn_result=%d hs_comp_res=%d\n", __func__,
 			btn_result, hs_comp_res);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (!rc) {
 		pr_debug("%s No btn press interrupt\n", __func__);
@@ -513,7 +513,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 			plug_type = MBHC_PLUG_TYPE_INVALID;
 	}
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	if ((plug_type == MBHC_PLUG_TYPE_HEADSET ||
 	     plug_type == MBHC_PLUG_TYPE_HEADPHONE) &&
 	    (!wcd_swch_level_remove(mbhc))) {
@@ -524,7 +524,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 		WCD_MBHC_RSC_UNLOCK(mbhc);
 	}
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	if ((plug_type == MBHC_PLUG_TYPE_HEADSET)
 			&& (!wcd_swch_level_remove(mbhc))) {
 		WCD_MBHC_RSC_LOCK(mbhc);
@@ -550,7 +550,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		high_hph_count ++;
 		pr_info("%s: MBHC_PLUG_TYPE_HIGH_HPH type\n", __func__);
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	timeout = jiffies + msecs_to_jiffies(HS_DETECT_PLUG_TIME_MS);
 	while (!time_after(jiffies, timeout)) {
@@ -602,9 +602,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		if (mbhc->mbhc_cb->hph_pa_on_status)
 			is_pa_on = mbhc->mbhc_cb->hph_pa_on_status(codec);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		pr_info("%s:  is_pa_on: %x\n", __func__, is_pa_on);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		/*
 		 * instead of hogging system by contineous polling, wait for
 		 * sometime and re-check stop request again.
@@ -613,9 +613,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		if (hs_comp_res && (spl_hs_count < WCD_MBHC_SPL_HS_CNT)) {
 			spl_hs = wcd_mbhc_check_for_spl_headset(mbhc,
 								&spl_hs_count);
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 			pr_info("%s:  spl_hs_count: %d\n", __func__, spl_hs_count);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 			if (spl_hs_count == WCD_MBHC_SPL_HS_CNT) {
 				hs_comp_res = 0;
@@ -627,16 +627,16 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		WCD_MBHC_REG_READ(WCD_MBHC_HPHL_SCHMT_RESULT, hphl_sch);
 		WCD_MBHC_REG_READ(WCD_MBHC_MIC_SCHMT_RESULT, mic_sch);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		pr_info("%s: hs_comp_res=%d hphl_sch=%d mic_sch=%d\n", __func__,
 					hs_comp_res, hphl_sch, mic_sch);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		if (hs_comp_res && !(hphl_sch || mic_sch)) {
 			pr_debug("%s: cable is extension cable\n", __func__);
 			plug_type = MBHC_PLUG_TYPE_HIGH_HPH;
 			wrk_complete = true;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 			high_hph_count ++;
 
 			if ((high_hph_count == 5) && !headset_count && !headphone_count) {
@@ -645,7 +645,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 			}
 
 			continue;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		} else {
 			pr_debug("%s: cable might be headset: %d\n", __func__,
 					plug_type);
@@ -666,16 +666,16 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 				 * and if there is not button press without
 				 * release
 				 */
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 				if (((mbhc->current_plug !=
 				      MBHC_PLUG_TYPE_HEADSET) &&
 				     (mbhc->current_plug !=
 				      MBHC_PLUG_TYPE_ANC_HEADPHONE)) &&
 				    !wcd_swch_level_remove(mbhc) &&
 				    !mbhc->btn_press_intr) {
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 				if ((!wcd_swch_level_remove(mbhc)) && (!mbhc->btn_press_intr)) {
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 					pr_debug("%s: cable is %sheadset\n",
 						__func__,
 						((spl_hs_count ==
@@ -683,9 +683,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 							"special ":""));
 					pr_info("%s: high_hph_count=%d mbhc->current_plug=%d headset_count=%d spl_hs_count=%d spl_hs_reported=%d\n", __func__,
 						high_hph_count, mbhc->current_plug, headset_count,spl_hs_count,spl_hs_reported);
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 					goto report;
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 					if (((high_hph_count > 0)
 							|| (mbhc->current_plug == MBHC_PLUG_TYPE_HEADPHONE))
 							&& (headset_count == 1)) {
@@ -695,9 +695,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 					    goto report;
 					}
 					headset_count ++;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 				}
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 				else {
 					plug_type = MBHC_PLUG_TYPE_HEADPHONE;
 					if ((mbhc->current_plug == MBHC_PLUG_TYPE_HEADPHONE)
@@ -720,7 +720,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 					}
 					headphone_count ++;
 				}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 			}
 			wrk_complete = false;
 		}
@@ -742,11 +742,11 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	    (plug_type == MBHC_PLUG_TYPE_ANC_HEADPHONE))) {
 		pr_debug("%s: plug_type:0x%x already reported\n",
 			 __func__, mbhc->current_plug);
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		goto enable_supply;
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		goto report;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	}
 
 	if (plug_type == MBHC_PLUG_TYPE_HIGH_HPH &&
@@ -769,14 +769,14 @@ report:
 		wcd_cancel_btn_work(mbhc);
 		plug_type = MBHC_PLUG_TYPE_HEADPHONE;
 	}
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	pr_debug("%s: Valid plug found, plug type %d wrk_cmpt %d btn_intr %d\n",
 			__func__, plug_type, wrk_complete,
 			mbhc->btn_press_intr);
 	WCD_MBHC_RSC_LOCK(mbhc);
 	wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	WCD_MBHC_RSC_UNLOCK(mbhc);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	pr_info("%s: Valid plug found, plug type %d wrk_cmpt %d btn_intr %d\n",
 			__func__, plug_type, wrk_complete,
 			mbhc->btn_press_intr);
@@ -802,7 +802,7 @@ report:
 		wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	}
 	WCD_MBHC_RSC_UNLOCK(mbhc);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 enable_supply:
 	if (mbhc->mbhc_cb->mbhc_micbias_control)
@@ -1104,8 +1104,8 @@ void wcd_mbhc_legacy_init(struct wcd_mbhc *mbhc)
 	}
 	mbhc->mbhc_fn = &mbhc_fn;
 	INIT_WORK(&mbhc->correct_plug_swch, wcd_correct_swch_plug);
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	INIT_DELAYED_WORK(&mbhc->hp_detect_work, wcd_mbhc_detect_plug_type_legacy);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 }
 EXPORT_SYMBOL(wcd_mbhc_legacy_init);

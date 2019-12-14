@@ -58,11 +58,11 @@
 #define SPK_PMD 2
 #define SPK_PMU 3
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 #define MICBIAS_DEFAULT_VAL 1800000
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 #define MICBIAS_DEFAULT_VAL 2700000
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 #define MICBIAS_MIN_VAL 1600000
 #define MICBIAS_STEP_SIZE 50000
 
@@ -204,9 +204,9 @@ static void msm_anlg_cdc_set_auto_zeroing(struct snd_soc_codec *codec,
 static void msm_anlg_cdc_configure_cap(struct snd_soc_codec *codec,
 				       bool micbias1, bool micbias2);
 static bool msm_anlg_cdc_use_mb(struct snd_soc_codec *codec);
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 void msm_anlg_cdc_set_micb_v_switch(struct snd_soc_codec *codec, u32 voltage);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static int get_codec_version(struct sdm660_cdc_priv *sdm660_cdc)
 {
@@ -496,9 +496,9 @@ static int msm_anlg_cdc_mbhc_map_btn_code_to_num(struct snd_soc_codec *codec)
 		break;
 	};
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	pr_info("%s: btn is %d", __func__, btn);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	return btn;
 }
@@ -925,9 +925,9 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.trim_btn_reg = msm_anlg_cdc_trim_btn_reg,
 	.compute_impedance = msm_anlg_cdc_mbhc_calc_impedance,
 	.set_micbias_value = msm_anlg_cdc_set_micb_v,
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	.set_micbias_value_switch = msm_anlg_cdc_set_micb_v_switch,
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	.set_auto_zeroing = msm_anlg_cdc_set_auto_zeroing,
 	.get_hwdep_fw_cal = msm_anlg_cdc_get_hwdep_fw_cal,
 	.set_cap_mode = msm_anlg_cdc_configure_cap,
@@ -1592,7 +1592,7 @@ static int msm_anlg_cdc_ear_pa_boost_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static int micbias_get(struct snd_kcontrol *kcontrol,
         struct snd_ctl_elem_value *ucontrol)
 {
@@ -1647,9 +1647,9 @@ static int micbias_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static int micbias_voltage_get(struct snd_kcontrol *kcontrol,
         struct snd_ctl_elem_value *ucontrol)
 {
@@ -1690,7 +1690,7 @@ static int micbias_voltage_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static int msm_anlg_cdc_pa_gain_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
@@ -1986,21 +1986,21 @@ static int msm_anlg_cdc_ext_spk_boost_set(struct snd_kcontrol *kcontrol,
 }
 
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static char const *msm_anlg_cdc_micbias_ctrl_text[] = {
 		"DISABLE", "MICBIAS1", "MICBIAS2", "FORCE_MICBIAS1"};
 static const struct soc_enum msm_anlg_cdc_micbias_ctl_enum[] = {
 		SOC_ENUM_SINGLE_EXT(4, msm_anlg_cdc_micbias_ctrl_text),
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static char const *msm_anlg_cdc_micbias_v_switch_text[] = {
 		"V_1P80", "V_2P70"};
 static const struct soc_enum msm_anlg_cdc_micbias_v_switch_enum[] = {
 		SOC_ENUM_SINGLE_EXT(2, msm_anlg_cdc_micbias_v_switch_text),
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static const char * const msm_anlg_cdc_ear_pa_boost_ctrl_text[] = {
 		"DISABLE", "ENABLE"};
@@ -2046,10 +2046,10 @@ static const char * const cf_text[] = {
 
 
 static const struct snd_kcontrol_new msm_anlg_cdc_snd_controls[] = {
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	SOC_ENUM_EXT("Enable Micbias", msm_anlg_cdc_micbias_ctl_enum[0],
 		micbias_get, micbias_put),
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	SOC_ENUM_EXT("RX HPH Mode", msm_anlg_cdc_hph_mode_ctl_enum[0],
 		msm_anlg_cdc_hph_mode_get, msm_anlg_cdc_hph_mode_set),
@@ -2076,10 +2076,10 @@ static const struct snd_kcontrol_new msm_anlg_cdc_snd_controls[] = {
 	SOC_SINGLE_TLV("ADC3 Volume", MSM89XX_PMIC_ANALOG_TX_3_EN, 3,
 					8, 0, analog_gain),
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	SOC_ENUM_EXT("MicBias_V_Switch", msm_anlg_cdc_micbias_v_switch_enum[0],
 		micbias_voltage_get, micbias_voltage_put),
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 };
 
@@ -3623,7 +3623,7 @@ static const struct snd_soc_dapm_widget msm_anlg_cdc_dapm_widgets[] = {
 		msm_anlg_cdc_codec_enable_adc, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	SND_SOC_DAPM_MICBIAS_E("MIC BIAS External",
 		MSM89XX_PMIC_ANALOG_MICB_1_EN, 7, 0,
 		msm_anlg_cdc_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
@@ -4070,7 +4070,7 @@ static void msm_anlg_cdc_set_micb_v(struct snd_soc_codec *codec)
 			0xF8, (reg_val << 3));
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 void msm_anlg_cdc_set_micb_v_switch(struct snd_soc_codec *codec, u32 voltage)
 {
 
@@ -4091,7 +4091,7 @@ void msm_anlg_cdc_set_micb_v_switch(struct snd_soc_codec *codec, u32 voltage)
 	snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_VAL,
 			0xF8, (reg_val << 3));
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static void msm_anlg_cdc_set_boost_v(struct snd_soc_codec *codec)
 {

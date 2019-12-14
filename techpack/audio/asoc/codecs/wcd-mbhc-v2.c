@@ -33,9 +33,9 @@
 #include "wcd-mbhc-adc.h"
 #include "wcd-mbhc-v2-api.h"
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #include <soc/oppo/oppo_project.h>
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 			  struct snd_soc_jack *jack, int status, int mask)
@@ -311,9 +311,9 @@ out_micb_en:
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP);
 		else
 			/* enable current source and disable mb, pullup*/
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 			{
 				pr_info("%s: current_plug %d\n", __func__, mbhc->current_plug);
 				if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET) {
@@ -322,7 +322,7 @@ out_micb_en:
 					wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
 				}
 			}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		/* configure cap settings properly when micbias is disabled */
 		if (mbhc->mbhc_cb->set_cap_mode)
@@ -569,10 +569,10 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				enum snd_jack_types jack_type)
 {
 	struct snd_soc_codec *codec = mbhc->codec;
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	bool is_pa_on = false;
 	u8 fsm_en = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 
@@ -588,19 +588,19 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		if (wcd_cancel_btn_work(mbhc)) {
 			pr_debug("%s: button press is canceled\n", __func__);
 		} else if (mbhc->buttons_pressed) {
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 			pr_debug("%s: release of button press%d\n",
 				 __func__, jack_type);
 			wcd_mbhc_jack_report(mbhc, &mbhc->button_jack, 0,
 					    mbhc->buttons_pressed);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 			pr_info("%s: release of button press%d\n",
 				 __func__, jack_type);
 			if (mbhc->buttons_pressed & (SND_JACK_BTN_2 | SND_JACK_BTN_3)) {
 				wcd_mbhc_jack_report(mbhc, &mbhc->button_jack, 0,
 					    mbhc->buttons_pressed);
 			}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 			mbhc->buttons_pressed &=
 				~WCD_MBHC_JACK_BUTTON_MASK;
 		}
@@ -623,13 +623,13 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 
 		mbhc->hph_type = WCD_MBHC_HPH_NONE;
 		mbhc->zl = mbhc->zr = 0;
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		pr_debug("%s: Reporting removal %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		pr_info("%s: Reporting removal %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				mbhc->hph_status, WCD_MBHC_JACK_MASK);
@@ -710,7 +710,7 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		} else if (jack_type == SND_JACK_ANC_HEADPHONE)
 			mbhc->current_plug = MBHC_PLUG_TYPE_ANC_HEADPHONE;
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		if (mbhc->mbhc_cb->hph_pa_on_status)
 			is_pa_on = mbhc->mbhc_cb->hph_pa_on_status(codec);
 
@@ -749,17 +749,17 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				__func__);
 			}
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		mbhc->hph_status |= jack_type;
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		pr_debug("%s: Reporting insertion %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				    (mbhc->hph_status | SND_JACK_MECHANICAL),
 				    WCD_MBHC_JACK_MASK);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		pr_info("%s: [1:headphone 3:headset 4:lineout]\n", __func__);
 		pr_info("%s: Reporting insertion jack_type=%d, (hph_status=0x%x)\n",
 			__func__, jack_type, mbhc->hph_status);
@@ -768,7 +768,7 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				(mbhc->hph_status | SND_JACK_MECHANICAL),
 				WCD_MBHC_JACK_MASK);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
 	}
 	pr_debug("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
@@ -820,13 +820,13 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 	bool anc_mic_found = false;
 	enum snd_jack_types jack_type;
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	pr_debug("%s: enter current_plug(%d) new_plug(%d)\n",
 		 __func__, mbhc->current_plug, plug_type);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	pr_info("%s: enter current_plug(%d) new_plug(%d)\n",
 		 __func__, mbhc->current_plug, plug_type);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 
@@ -890,11 +890,11 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 		     mbhc->current_plug, plug_type);
 	}
 exit:
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	pr_debug("%s: leave\n", __func__);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	pr_info("%s: leave\n", __func__);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 }
 EXPORT_SYMBOL(wcd_mbhc_find_plug_and_report);
 
@@ -905,22 +905,22 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 	struct snd_soc_codec *codec = mbhc->codec;
 	enum snd_jack_types jack_type;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	dev_dbg(codec->dev, "%s: enter\n", __func__);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	pr_info("%s: enter\n", __func__);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if (mbhc->mbhc_detection_logic == WCD_DETECTION_LEGACY) {
 		cancel_delayed_work_sync(&mbhc->hp_detect_work);
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	WCD_MBHC_RSC_LOCK(mbhc);
 	mbhc->in_swch_irq_handler = true;
@@ -964,11 +964,11 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 			 */
 			mbhc->mbhc_cb->micb_internal(codec, 1, true);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		if (mbhc->mbhc_cb->set_micbias_value_switch) {
 			mbhc->mbhc_cb->set_micbias_value_switch(codec, 2700000);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		/* Remove micbias pulldown */
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_PULLDOWN_CTRL, 0);
@@ -980,22 +980,22 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 			mbhc->mbhc_cb->enable_mb_source(mbhc, true);
 		mbhc->btn_press_intr = false;
 		mbhc->is_btn_press = false;
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		if (mbhc->mbhc_fn)
 			mbhc->mbhc_fn->wcd_mbhc_detect_plug_type(mbhc);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		if (mbhc->mbhc_detection_logic == WCD_DETECTION_LEGACY) {
 			schedule_delayed_work(&mbhc->hp_detect_work, msecs_to_jiffies(HP_DETECT_WORK_DELAY_MS));
 		} else {
 			if (mbhc->mbhc_fn)
 				mbhc->mbhc_fn->wcd_mbhc_detect_plug_type(mbhc);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	} else if ((mbhc->current_plug != MBHC_PLUG_TYPE_NONE)
 			&& !detection_type) {
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		/* Disable external voltage source to micbias if present */
 		if (mbhc->mbhc_cb->enable_mb_source)
 			mbhc->mbhc_cb->enable_mb_source(mbhc, false);
@@ -1068,14 +1068,14 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 	int r = IRQ_HANDLED;
 	struct wcd_mbhc *mbhc = data;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	disable_irq_nosync(irq);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: enter\n", __func__);
 	if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false)) {
@@ -1087,9 +1087,9 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 		mbhc->mbhc_cb->lock_sleep(mbhc, false);
 	}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	enable_irq(irq);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: leave %d\n", __func__, r);
 	return r;
@@ -1135,10 +1135,10 @@ static void wcd_btn_lpress_fn(struct work_struct *work)
 	struct wcd_mbhc *mbhc;
 	s16 btn_result = 0;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: Enter\n", __func__);
 
@@ -1186,10 +1186,10 @@ static irqreturn_t wcd_mbhc_btn_press_handler(int irq, void *data)
 	int mask;
 	unsigned long msec_val;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: enter\n", __func__);
 	complete(&mbhc->btn_press_compl);
@@ -1241,10 +1241,10 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 	struct wcd_mbhc *mbhc = data;
 	int ret;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #undef pr_debug
 #define pr_debug pr_info
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_LOCK(mbhc);
@@ -1269,19 +1269,19 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 	 */
 	if (mbhc->mbhc_detection_logic == WCD_DETECTION_LEGACY &&
 		mbhc->current_plug == MBHC_PLUG_TYPE_HEADPHONE) {
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		wcd_mbhc_find_plug_and_report(mbhc, MBHC_PLUG_TYPE_HEADSET);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		goto exit;
 
 	}
 	if (mbhc->buttons_pressed & WCD_MBHC_JACK_BUTTON_MASK) {
 		ret = wcd_cancel_btn_work(mbhc);
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		if (ret == 0) {
 #else
 		if (ret == 0) {
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 			pr_debug("%s: Reporting long button release event\n",
 				 __func__);
@@ -1403,9 +1403,9 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 	if (mbhc->mbhc_cb->hph_pull_up_control)
 		mbhc->mbhc_cb->hph_pull_up_control(codec, I_DEFAULT);
 	else
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HS_L_DET_PULL_UP_CTRL, 3);
-		#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+		#else /* VENDOR_EDIT */
 		if (is_project(OPPO_18081) || is_project(OPPO_18085)) {
 			if (get_PCB_Version() < HW_VERSION__12) { /* before DVT */
 				pr_info("%s: internal 3uA pull up for detection\n", __func__);
@@ -1418,7 +1418,7 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 			pr_info("%s: default disable pull up for detection\n", __func__);
 			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HS_L_DET_PULL_UP_CTRL, 0);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (mbhc->mbhc_cfg->moisture_en && mbhc->mbhc_cb->mbhc_moisture_config)
 		mbhc->mbhc_cb->mbhc_moisture_config(mbhc);
@@ -1677,9 +1677,9 @@ static void wcd_mbhc_usbc_analog_work_fn(struct work_struct *work)
 	struct wcd_mbhc *mbhc =
 		container_of(work, struct wcd_mbhc, usbc_analog_work);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	pr_info("%s: mbhc->usbc_mode = %d\n", __func__, mbhc->usbc_mode);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	wcd_mbhc_usb_c_analog_setup_gpios(mbhc,
 			mbhc->usbc_mode != POWER_SUPPLY_TYPEC_NONE);
@@ -2122,9 +2122,9 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 	init_waitqueue_head(&mbhc->wait_btn_press);
 	mutex_init(&mbhc->codec_resource_lock);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	mbhc->mbhc_detection_logic = WCD_DETECTION_LEGACY;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	switch (mbhc->mbhc_detection_logic) {
 	case WCD_DETECTION_LEGACY:

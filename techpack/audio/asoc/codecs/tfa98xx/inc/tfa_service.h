@@ -942,7 +942,7 @@ enum Tfa98xx_Error tfaRunSpeakerStartup_v6(struct tfa_device *tfa, int force, in
  * @param tfa the device struct pointer
  */
 enum Tfa98xx_Error tfaRunSpeakerCalibration_v6(struct tfa_device *tfa);
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 enum Tfa98xx_Error tfaRunSpeakerCalibration_result_v6(struct tfa_device *tfa, int *result);
 #endif
 

@@ -26,20 +26,20 @@
 #include "tfa98xx.h"
 #include "tfa.h"
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #include <linux/regulator/consumer.h>
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 /* required for enum tfa9912_irq */
 #include "tfa98xx_tfafieldnames.h"
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #include <linux/proc_fs.h>
 #include <soc/oppo/oppo_project.h>
 
 struct tfa98xx *tfa98xx_whole_v6;
 extern bool g_speaker_resistance_fail;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 #ifndef CONFIG_DEBUG_FS
 #define CONFIG_DEBUG_FS
@@ -50,10 +50,10 @@ extern bool g_speaker_resistance_fail;
 #define I2C_RETRIES 50
 #define I2C_RETRY_DELAY 5 /* ms */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 #include <linux/debugfs.h>
 #include <linux/fs.h>
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 /* Change volume selection behavior:
  * Uncomment following line to generate a profile change when updating
@@ -85,7 +85,7 @@ static nxpTfaContainer_t *tfa98xx_container = NULL;
 static int tfa98xx_kmsg_regs = 0;
 static int tfa98xx_ftrace_regs = 0;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static char fw_name[100] = {0};
 static char *fw_name_v6 = "tfa98xx.cnt";
 module_param(fw_name_v6, charp, S_IRUGO | S_IWUSR);
@@ -94,7 +94,7 @@ MODULE_PARM_DESC(fw_name_v6, "TFA98xx DSP firmware (container file) name.");
 static char *fw_name = "tfa98xx.cnt";
 module_param(fw_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fw_name, "TFA98xx DSP firmware (container file) name.");
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static int trace_level = 0;
 module_param(trace_level, int, S_IRUGO);
@@ -126,7 +126,7 @@ static void tfa98xx_interrupt_enable(struct tfa98xx *tfa98xx, bool enable);
 static int get_profile_from_list(char *buf, int id);
 static int get_profile_id_for_sr(int id, unsigned int rate);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static bool is_tfa98xx_series(int rev)
 {
 	bool ret = false;
@@ -188,7 +188,7 @@ static const struct snd_kcontrol_new ftm_spk_rev_controls[] = {
 	SOC_ENUM_EXT("SPK_Pa Revision", ftm_spk_rev_enum,
 			ftm_spk_rev_get, ftm_spk_rev_put),
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 struct tfa98xx_rate {
 	unsigned int rate;
@@ -207,7 +207,7 @@ static const struct tfa98xx_rate rate_to_fssel[] = {
 	{ 48000, 8 },
 };
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 unsigned short tfa98xx_vol_value = 0;
 static int tfa98xx_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -240,7 +240,7 @@ static const struct snd_kcontrol_new tfa98xx_snd_controls[] = {
 	SOC_SINGLE_EXT("TFA98XX Volume", SND_SOC_NOPM, 0, 0xff, 0,
 		       tfa98xx_volume_get, tfa98xx_volume_set),
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 
 static inline char *tfa_cont_profile_name(struct tfa98xx *tfa98xx, int prof_idx)
@@ -268,7 +268,7 @@ static enum tfa_error tfa98xx_write_re25(struct tfa_device *tfa, int value)
 	return err;
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static  struct dentry *tfa98xx_debugfs;
 #define TFA98XX_DEBUG_FS_NAME "ftm_tfa98xx"
 int ftm_mode = 0;
@@ -323,7 +323,7 @@ static const struct file_operations tfa98xx_debug_ops =
 	.read = kernel_debug_read,
 	.write = kernel_debug_write,
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 /* Wrapper for tfa start */
 static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profile, int vstep)
@@ -331,9 +331,9 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 	enum tfa_error err;
 	ktime_t start_time, stop_time;
 	u64 delta_time;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int ready = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (trace_level & 8) {
 		start_time = ktime_get_boottime();
@@ -374,14 +374,14 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 	 */
 	tfa98xx_interrupt_enable(tfa98xx, true);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if (ftm_mode == BOOT_MODE_FACTORY) {
 		tfa98xx_dsp_system_stable_v6(tfa98xx->tfa, &ready);
 		if (!ready) {
 			strcpy(ftm_clk, "clk_fail");
 		}
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	return err;
 }
@@ -686,7 +686,7 @@ static ssize_t tfa98xx_dbgfs_start_set(struct file *file,
 	return count;
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static int tfa98xx_speaker_recalibration_v6(struct tfa_device *tfa, int *speakerImpedance)
 {
 	int err, error = Tfa98xx_Error_Ok;
@@ -719,7 +719,7 @@ static int tfa98xx_speaker_recalibration_v6(struct tfa_device *tfa, int *speaker
 	}
 	return error;
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 				     char __user *user_buf, size_t count,
@@ -730,10 +730,10 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 	char *str;
 	uint16_t status;
 	int ret;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int calibrate_done = 0;
 	int speakerImpedance = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	mutex_lock(&tfa98xx->dsp_lock);
 
@@ -747,24 +747,24 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		goto r_c_err;
 	}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	ret = tfaRunSpeakerCalibration_result_v6(tfa98xx->tfa, &calibrate_done);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	ret = tfaRunSpeakerCalibration_v6(tfa98xx->tfa);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	if (ret) {
 		ret = -EIO;
 		pr_err("[0x%x] calibration failed\n", tfa98xx->i2c->addr);
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		goto r_c_err;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if (1 == calibrate_done) {
 		tfa98xx_speaker_recalibration_v6(tfa98xx->tfa, &speakerImpedance);
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
@@ -773,11 +773,11 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		goto r_c_err;
 	}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	ret = snprintf(str, PAGE_SIZE, " Prim:%d mOhms, Sec:%d mOhms\n",
 					speakerImpedance,
 					tfa98xx->tfa->mohm[1]);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	if (tfa98xx->tfa->spkr_count > 1) {
 		ret = snprintf(str, PAGE_SIZE,
 		              "Prim:%d mOhms, Sec:%d mOhms\n",
@@ -788,7 +788,7 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		              "Prim:%d mOhms\n",
 		              tfa98xx->tfa->mohm[0]);
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_info("[0x%x] calib_done: %s", tfa98xx->i2c->addr, str);
 
@@ -1438,7 +1438,7 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 	/* update mixer profile */
 	tfa98xx_mixer_profile = new_profile;
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	mutex_lock(&tfa98xx_mutex);
 	list_for_each_entry(tfa98xx, &tfa98xx_device_list, list) {
 		int err;
@@ -1480,9 +1480,9 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 	}
 
 	mutex_unlock(&tfa98xx_mutex);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	change = 1;
-#endif /*CONFIG_PRODUCT_REALME_RMX1901*/
+#endif /*VENDOR_EDIT*/
 
 	return change;
 }
@@ -1827,21 +1827,21 @@ static struct snd_soc_dapm_widget tfa98xx_dapm_widgets_saam[] = {
 	SND_SOC_DAPM_INPUT("SAAM MIC"),
 };
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 static struct snd_soc_dapm_widget tfa9888_dapm_inputs[] = {
 	SND_SOC_DAPM_INPUT("DMIC1"),
 	SND_SOC_DAPM_INPUT("DMIC2"),
 	SND_SOC_DAPM_INPUT("DMIC3"),
 	SND_SOC_DAPM_INPUT("DMIC4"),
 };
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 static struct snd_soc_dapm_widget tfa9888_dapm_inputs[] = {
 	SND_SOC_DAPM_INPUT("TFA98XX_DMIC1"),
 	SND_SOC_DAPM_INPUT("TFA98XX_DMIC2"),
 	SND_SOC_DAPM_INPUT("TFA98XX_DMIC3"),
 	SND_SOC_DAPM_INPUT("TFA98XX_DMIC4"),
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static const struct snd_soc_dapm_route tfa98xx_dapm_routes_common[] = {
 	{ "OUTL", NULL, "AIF IN" },
@@ -1856,21 +1856,21 @@ static const struct snd_soc_dapm_route tfa98xx_dapm_routes_stereo[] = {
 	{ "OUTR", NULL, "AIF IN" },
 };
 
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 static const struct snd_soc_dapm_route tfa9888_input_dapm_routes[] = {
 	{ "AIF OUT", NULL, "DMIC1" },
 	{ "AIF OUT", NULL, "DMIC2" },
 	{ "AIF OUT", NULL, "DMIC3" },
 	{ "AIF OUT", NULL, "DMIC4" },
 };
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 static const struct snd_soc_dapm_route tfa9888_input_dapm_routes[] = {
 	{ "AIF OUT", NULL, "TFA98XX_DMIC1" },
 	{ "AIF OUT", NULL, "TFA98XX_DMIC2" },
 	{ "AIF OUT", NULL, "TFA98XX_DMIC3" },
 	{ "AIF OUT", NULL, "TFA98XX_DMIC4" },
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0)
 static struct snd_soc_dapm_context *snd_soc_codec_get_dapm(struct snd_soc_codec *codec)
@@ -2278,9 +2278,9 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 
 		tfa_err = tfa_load_cnt_v6(container, container_size);
 		if (tfa_err != tfa_error_ok) {
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 			strcpy(ftm_load_file, "load_file_fail");
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 			mutex_unlock(&tfa98xx_mutex);
 			kfree(container);
 			dev_err(tfa98xx->dev, "Cannot load container file, aborting\n");
@@ -2364,11 +2364,11 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 		tfa_reset_v6(tfa98xx->tfa);
 	}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if (tfa98xx->flags & TFA98XX_FLAG_TDM_DEVICE) {
 		return;
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/* Preload settings using internal clock on TFA2 */
 	if (tfa98xx->tfa->tfa_family == 2) {
@@ -2382,7 +2382,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 	tfa98xx_interrupt_enable(tfa98xx, true);
 }
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 bool is_tfa98xx_series_v6(int rev){
     bool ret = false;
     if((rev == 0x80) || (rev == 0x81) || (rev == 0x94)) {
@@ -2390,20 +2390,20 @@ bool is_tfa98xx_series_v6(int rev){
     }
     return ret;
 }
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static int tfa98xx_load_container(struct tfa98xx *tfa98xx)
 {
 	tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_PENDING;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	if(is_project(OPPO_18383)) {
 		sprintf(fw_name,"tfa98xx_18383.cnt");
 	} else {
 		sprintf(fw_name,"tfa98xx.cnt");
 	}
 	pr_info("loaded cnt: %s\n", fw_name);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 	                               fw_name, tfa98xx->dev, GFP_KERNEL,
@@ -2489,9 +2489,9 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 	bool failed = false;
 	bool reschedule = false;
 	bool sync= false;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int value = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (tfa98xx->dsp_fw_state != TFA98XX_DSP_FW_OK) {
 		pr_debug("Skipping tfa_dev_start (no FW: %d)\n", tfa98xx->dsp_fw_state);
@@ -2509,25 +2509,25 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 
 	tfa98xx->dsp_init = TFA98XX_DSP_INIT_PENDING;
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	value = tfa_dev_mtp_get(tfa98xx->tfa, TFA_MTP_EX);
 	if (!value) {
 		tfa98xx->profile = tfaContGetCalProfile_v6(tfa98xx->tfa);
 		pr_info("%s force the change to calibration profile for calibrate\n", __func__);
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (tfa98xx->init_count < TF98XX_MAX_DSP_START_TRY_COUNT) {
 		/* directly try to start DSP */
 		ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		if ((!value) && (ret == Tfa98xx_Error_Ok)) {
 			tfa_dev_stop(tfa98xx->tfa);
 			tfa98xx->profile = tfa98xx_mixer_profile;
 			ret = tfa98xx_tfa_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
 			pr_info("finish calibrate, replay with profile %d, ret %d\n", tfa98xx->profile, ret);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		if (ret == Tfa98xx_Error_Not_Supported) {
 			tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_FAIL;
 			dev_err(&tfa98xx->i2c->dev, "Failed starting device\n");
@@ -2571,11 +2571,11 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 		/* cancel other pending init works */
 		cancel_delayed_work(&tfa98xx->init_work);
 		tfa98xx->init_count = 0;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		if (ftm_mode == BOOT_MODE_FACTORY) {
 			strcpy(ftm_path, "open_path_fail");
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	}
 	mutex_unlock(&tfa98xx->dsp_lock);
 
@@ -2595,7 +2595,7 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 			tfa98xx_sync_count = 0;
 			list_for_each_entry(tfa98xx, &tfa98xx_device_list, list) {
 				mutex_lock(&tfa98xx->dsp_lock);
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 				tfa_dev_set_state(tfa98xx->tfa, TFA_STATE_UNMUTE);
 #else
 				if (!g_speaker_resistance_fail) {
@@ -2605,7 +2605,7 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 					pr_err("set mute state for resistance out of range!\n");
 					tfa_dev_set_state(tfa98xx->tfa, TFA_STATE_MUTE);
 				}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 				/*
 				 * start monitor thread to check IC status bit
@@ -2621,12 +2621,12 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 
 		}
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		if (ftm_mode == BOOT_MODE_FACTORY) {
 			pr_info("finish for ftm ringtone\n");
 			strcpy(ftm_tfa98xx_flag, "ok");
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	}
 
 
@@ -2895,15 +2895,15 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 			tfa98xx->cstream = 1;
 
 		/* Start DSP */
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		if (tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING)
 			queue_delayed_work(tfa98xx->tfa98xx_wq,
 			                   &tfa98xx->init_work, 0);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		if (tfa98xx->dsp_init != TFA98XX_DSP_INIT_PENDING) {
 			tfa98xx_dsp_init(tfa98xx);
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	}
 
 	return 0;
@@ -2937,13 +2937,13 @@ static struct snd_soc_dai_driver tfa98xx_dai[] = {
 			 .formats = TFA98XX_FORMATS,
 		 },
 		.ops = &tfa98xx_dai_ops,
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 		.symmetric_rates = 1,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
 		.symmetric_channels = 1,
 		.symmetric_samplebits = 1,
 #endif
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	},
 };
 
@@ -2954,9 +2954,9 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 
 	pr_info("%s\n", __func__);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
     tfa98xx_whole_v6 = tfa98xx;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 	/* setup work queue, will be used to initial DSP on first boot up */
 	tfa98xx->tfa98xx_wq = create_singlethread_workqueue("tfa98xx");
 	if (!tfa98xx->tfa98xx_wq)
@@ -2982,15 +2982,15 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 #endif
 	tfa98xx_add_widgets(tfa98xx);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	snd_soc_add_codec_controls(tfa98xx->codec,
 		tfa98xx_snd_controls, ARRAY_SIZE(tfa98xx_snd_controls));
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	snd_soc_add_codec_controls(tfa98xx->codec,
 			ftm_spk_rev_controls, ARRAY_SIZE(ftm_spk_rev_controls));
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	dev_info(codec->dev, "tfa98xx codec registered (%s) ret=%d",
 							tfa98xx->fw.name, ret);
@@ -3234,9 +3234,9 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	//int irq_flags;
 	unsigned int reg;
 	int ret;
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int i = 0;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	pr_info("%s: addr=0x%x\n", __func__, i2c->addr);
 
@@ -3267,7 +3267,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	mutex_init(&tfa98xx->dsp_lock);
 	init_waitqueue_head(&tfa98xx->wq);
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	tfa98xx->tfa98xx_vdd = regulator_get(&i2c->dev, "tfa9890_vdd");
 	if (IS_ERR(tfa98xx->tfa98xx_vdd)) {
 		printk("regulator tfa98xx_vdd get failed\n ");
@@ -3297,12 +3297,12 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		devm_kfree(&i2c->dev, tfa98xx);
 		return ret;
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	tfa98xx->reset_gpio = -1;
 	tfa98xx->irq_gpio = -1;
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	if (np) {
 		ret = tfa98xx_parse_dt(&i2c->dev, tfa98xx, np);
 		if (ret) {
@@ -3317,7 +3317,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		tfa98xx->reset_gpio = -1;
 		tfa98xx->irq_gpio = -1;
 	}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (gpio_is_valid(tfa98xx->reset_gpio)) {
 		ret = devm_gpio_request_one(&i2c->dev, tfa98xx->reset_gpio,
@@ -3337,7 +3337,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	tfa98xx_ext_reset(tfa98xx);
 
 	if ((no_start == 0) && (no_reset == 0)) {
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		for (i = 0; i < 100; i++) {
 			ret = regmap_read(tfa98xx->regmap, 0x03, &reg);
 			if ((ret < 0) || !is_tfa98xx_series_v6(reg & 0xff)) {
@@ -3347,14 +3347,14 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 				break;
 			}
 		}
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 		ret = regmap_read(tfa98xx->regmap, 0x03, &reg);
 		if (ret < 0) {
 			dev_err(&i2c->dev, "Failed to read Revision register: %d\n",
 				ret);
 			return -EIO;
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		switch (reg & 0xff) {
 		case 0x72: /* tfa9872 */
 			pr_info("TFA9872 detected\n");
@@ -3476,12 +3476,12 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		tfa98xx_debug_init(tfa98xx, i2c);
 #endif
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	tfa98xx_debugfs = debugfs_create_file(TFA98XX_DEBUG_FS_NAME,
 			S_IFREG | S_IRUGO | S_IWUSR, NULL, (void *)TFA98XX_DEBUG_FS_NAME, &tfa98xx_debug_ops);
 	ftm_mode = get_boot_mode();
 	pr_info("ftm_mode=%d\n", ftm_mode);
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	/* Register the sysfs files for climax backdoor access */
 	ret = device_create_bin_file(&i2c->dev, &dev_attr_rw);

@@ -1436,9 +1436,9 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm_int_wcd_cal)->X) = (Y))
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	S(v_hs_max, 1500);
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	S(v_hs_max, 1700);
 #endif
 #undef S
@@ -1463,7 +1463,7 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-#ifndef CONFIG_PRODUCT_REALME_RMX1901
+#ifndef VENDOR_EDIT
 	btn_low[0] = 75;
 	btn_high[0] = 75;
 	btn_low[1] = 150;
@@ -1474,7 +1474,7 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 	btn_high[3] = 450;
 	btn_low[4] = 500;
 	btn_high[4] = 500;
-#else /* CONFIG_PRODUCT_REALME_RMX1901 */
+#else /* VENDOR_EDIT */
 	btn_low[0] = 60;		/* Hook ,0 ~ 160 Ohm*/
 	btn_high[0] = 130;
 	btn_low[1] = 131;
@@ -1485,7 +1485,7 @@ static void *def_msm_int_wcd_mbhc_cal(void)
 	btn_high[3] = 425;
 	btn_low[4] = 426;
 	btn_high[4] = 426;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	return msm_int_wcd_cal;
 }
@@ -2181,9 +2181,9 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 		.cpu_dai_name = "INT3_MI2S_TX_HOSTLESS",
 		.platform_name = "msm-pcm-hostless",
 		.dynamic = 1,
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		.dpcm_playback = 1,
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 		.dpcm_capture = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
@@ -3106,7 +3106,7 @@ static struct snd_soc_dai_link msm_int_common_be_dai[] = {
 	},
 };
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 static struct snd_soc_dai_link tfa98xx_be_dai_links[] = {
 	{
 		.name = LPASS_BE_TERT_MI2S_RX,
@@ -3124,7 +3124,7 @@ static struct snd_soc_dai_link tfa98xx_be_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 };
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 	{
@@ -3597,12 +3597,12 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 	int len1;
 
 
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 	int i;
 	const char *product_name = NULL;
 	const char *oppo_speaker_type = "oppo,speaker-pa";
 	struct snd_soc_dai_link *temp_link;
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 	if (snd_card_val == INT_SND_CARD)
 		card = &sdm660_card;
@@ -3639,7 +3639,7 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 
 	if (of_property_read_bool(dev->of_node,
 				  "qcom,mi2s-audio-intf")) {
-#ifdef CONFIG_PRODUCT_REALME_RMX1901
+#ifdef VENDOR_EDIT
 		if (!of_property_read_string(dev->of_node, oppo_speaker_type,
 				&product_name)) {
 			pr_info("%s: custom speaker product %s\n", __func__, product_name);
@@ -3656,7 +3656,7 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 				}
 			}
 		}
-#endif /* CONFIG_PRODUCT_REALME_RMX1901 */
+#endif /* VENDOR_EDIT */
 
 		memcpy(dailink + len1,
 		       msm_mi2s_be_dai_links,
