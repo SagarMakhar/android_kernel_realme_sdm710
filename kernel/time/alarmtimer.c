@@ -26,6 +26,18 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define ALARM_MINIMUM 120
+#define ALARM_DELTA 60
+
+static atomic_t alarm_atomic = ATOMIC_INIT(0);
+static atomic_t alarm_sleep_busy_atomic = ATOMIC_INIT(0);
+extern u64 alarm_count;
+extern u64 wakeup_source_count_rtc;
+extern enum alarmtimer_restart	(*net_alarm_func)(struct alarm *, ktime_t now);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 /**
  * struct alarm_base - Alarm timer bases
  * @lock:		Lock for syncrhonized access to the base
@@ -208,6 +220,29 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 	alarmtimer_dequeue(base, alarm);
 	spin_unlock_irqrestore(&base->lock, flags);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (alarm->type == ALARM_REALTIME || alarm->type == ALARM_BOOTTIME) {
+		if(!((alarm->function) && (alarm->function == net_alarm_func)))
+			alarm_count++;
+
+		if(atomic_read(&alarm_atomic) || atomic_read(&alarm_sleep_busy_atomic)) {
+			if(!((alarm->function) && (alarm->function == net_alarm_func)))
+				wakeup_source_count_rtc++;
+
+			if(atomic_read(&alarm_sleep_busy_atomic)) {
+				atomic_set(&alarm_sleep_busy_atomic, 0);
+			}
+			if (alarm->function) {
+				pr_info("%s.: type=%d, count=%lld, wakeup count=%lld, func=%pf\n", __func__, alarm->type, alarm_count, wakeup_source_count_rtc, alarm->function); //log diff, better for log filter
+			}
+		} else {
+			if (alarm->function) {
+				//pr_info("%s : type=%d, count=%lld, wakeup count=%lld, func=%pf\n", __func__, alarm->type, alarm_count, wakeup_source_count_rtc, alarm->function);
+			}
+		}
+	}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 	if (alarm->function)
 		restart = alarm->function(alarm, base->gettime());
 
@@ -254,6 +289,9 @@ static int alarmtimer_suspend(struct device *dev)
 	min = freezer_delta;
 	freezer_delta = ktime_set(0, 0);
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	atomic_set(&alarm_atomic, 1);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	rtc = alarmtimer_get_rtcdev();
 	/* If we have no rtcdev, just return */
@@ -280,6 +318,10 @@ static int alarmtimer_suspend(struct device *dev)
 
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
+        #ifdef CONFIG_PRODUCT_REALME_SDM710
+		atomic_set(&alarm_atomic, 0);
+		atomic_set(&alarm_sleep_busy_atomic, 1);
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		return -EBUSY;
 	}
 
@@ -299,6 +341,9 @@ static int alarmtimer_suspend(struct device *dev)
 static int alarmtimer_resume(struct device *dev)
 {
 	struct rtc_device *rtc;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	atomic_set(&alarm_atomic, 0);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	rtc = alarmtimer_get_rtcdev();
 	if (rtc)
