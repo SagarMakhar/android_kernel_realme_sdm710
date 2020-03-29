@@ -30,6 +30,10 @@
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #include "clk.h"
 
 #if defined(CONFIG_COMMON_CLK)
@@ -3049,11 +3053,22 @@ EXPORT_SYMBOL_GPL(clk_debugfs_add_file);
  * Otherwise if print_parent set to 0, print only enabled clocks
  *
  */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern bool is_not_in_xo_mode(void);
+#endif
+/* CONFIG_PRODUCT_REALME_SDM710 */
 void clock_debug_print_enabled(bool print_parent)
 {
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (likely(!debug_suspend) && !is_not_in_xo_mode())
+        return;
+    if(is_not_in_xo_mode())
+        printk(KERN_ERR"[RM_POWER]: warning!!! system can not enter xo mode.\n");
+#else
 	if (likely(!debug_suspend))
 		return;
-
+#endif
+/* CONFIG_PRODUCT_REALME_SDM710 */
 	if (print_parent)
 		clock_debug_print_enabled_clocks(NULL);
 	else
@@ -3121,6 +3136,11 @@ static int __init clk_debug_init(void)
 
 	inited = 1;
 	mutex_unlock(&clk_debug_lock);
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (oppo_daily_build())
+		debug_suspend = 1;
+	#endif/*CONFIG_PRODUCT_REALME_SDM710*/
 
 	return 0;
 }
