@@ -123,6 +123,10 @@ void nmi_panic(struct pt_regs *regs, const char *msg)
 }
 EXPORT_SYMBOL(nmi_panic);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int panic_flush_device_cache(int timeout);
+#endif  /*CONFIG_PRODUCT_REALME_SDM710*/
+
 /**
  *	panic - halt the system
  *	@fmt: The text string to print

@@ -90,6 +90,9 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 #ifdef CONFIG_RWSEM_PRIO_AWARE
 	sem->m_count = 0;
 #endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    sem->ux_dep_task = NULL;
+#endif
 }
 
 EXPORT_SYMBOL(__init_rwsem);
@@ -268,6 +271,12 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 	     is_first_waiter)))
 		__rwsem_mark_wake(sem, RWSEM_WAKE_ANY, &wake_q);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (sysctl_uifirst_enabled) {
+        rwsem_dynamic_ux_enqueue(current, waiter.task, READ_ONCE(sem->owner), sem);
+    }
+#endif
+
 	raw_spin_unlock_irq(&sem->wait_lock);
 	wake_up_q(&wake_q);
 
@@ -276,7 +285,19 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 		if (!waiter.task)
 			break;
+		//#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (hung_long_and_fatal_signal_pending(tsk)) {
+			list_del(&waiter.list);
+			break;
+		}
+		//#endif
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+        current->in_downread = 1;
+#endif
 		schedule();
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+        current->in_downread = 0;
+#endif
 	}
 
 	__set_task_state(tsk, TASK_RUNNING);
@@ -535,6 +556,12 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 	} else
 		count = atomic_long_add_return(RWSEM_WAITING_BIAS, &sem->count);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (sysctl_uifirst_enabled) {
+        rwsem_dynamic_ux_enqueue(waiter.task, current, READ_ONCE(sem->owner), sem);
+    }
+#endif
+
 	/* wait until we successfully acquire the lock */
 	set_current_state(state);
 	while (true) {
@@ -544,15 +571,30 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 
 		/* Block until there are no active lockers. */
 		do {
+			//#ifdef CONFIG_PRODUCT_REALME_SDM710
+			if (hung_long_and_fatal_signal_pending(current)) {
+				raw_spin_lock_irq(&sem->wait_lock);
+				goto out;
+			}
+			//#endif
+
 			if (signal_pending_state(state, current))
 				goto out_nolock;
-
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+            current->in_downwrite = 1;
+#endif
 			schedule();
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+            current->in_downwrite = 0;
+#endif
 			set_current_state(state);
 		} while ((count = atomic_long_read(&sem->count)) & RWSEM_ACTIVE_MASK);
 
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
+//#ifdef CONFIG_PRODUCT_REALME_SDM710
+out:
+//#endif
 	__set_current_state(TASK_RUNNING);
 	list_del(&waiter.list);
 	raw_spin_unlock_irq(&sem->wait_lock);
@@ -659,6 +701,12 @@ locked:
 
 	if (!list_empty(&sem->wait_list))
 		__rwsem_mark_wake(sem, RWSEM_WAKE_ANY, &wake_q);
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (sysctl_uifirst_enabled) {
+        rwsem_dynamic_ux_dequeue(sem, current);
+    }
+#endif
 
 	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
 	wake_up_q(&wake_q);

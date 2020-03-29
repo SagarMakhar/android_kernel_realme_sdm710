@@ -338,6 +338,22 @@ static bool has_stopped_jobs(struct pid *pgrp)
 	return false;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static bool oppo_is_android_core_group(struct pid *pgrp)
+{
+    struct task_struct *p;
+
+    do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
+        if (( !strcmp(p->comm, "zygote") ) || ( !strcmp(p->comm, "main")) ) {
+            printk("oppo_is_android_core_group: find zygote will be hungup, ignore it \n");
+            return true;
+        }
+    } while_each_pid_task(pgrp, PIDTYPE_PGID, p);
+
+    return false;
+}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 /*
  * Check to see if any process groups have become orphaned as
  * a result of our exiting, and if they have any stopped jobs,
@@ -364,6 +380,12 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	    task_session(parent) == task_session(tsk) &&
 	    will_become_orphaned_pgrp(pgrp, ignored_task) &&
 	    has_stopped_jobs(pgrp)) {
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+            if (oppo_is_android_core_group(pgrp)) {
+                printk("kill_orphaned_pgrp: find android core process will be hungup, ignored it, only hungup itself:%s:%d , current=%d \n",tsk->comm,tsk->pid,current->pid);
+                return;
+            }
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
 		__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 	}
@@ -745,11 +767,53 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
+//#ifdef CONFIG_PRODUCT_REALME_SDM710
+static bool is_zygote_process(struct task_struct *t)
+{
+	const struct cred *tcred = __task_cred(t);
+
+	struct task_struct * first_child = NULL;
+	if(t->children.next && t->children.next != (struct list_head*)&t->children.next)
+		first_child = container_of(t->children.next, struct task_struct, sibling);
+	if(!strcmp(t->comm, "main") && (tcred->uid.val == 0) && (t->parent != 0 && !strcmp(t->parent->comm,"init"))  )
+		return true;
+	else
+		return false;
+	return false;
+}
+
+static bool is_critial_process(struct task_struct *t) {
+    if(t->group_leader && (!strcmp(t->group_leader->comm, "system_server") || is_zygote_process(t) || !strcmp(t->group_leader->comm, "surfaceflinger") || !strcmp(t->group_leader->comm, "servicemanager"))) 
+    {
+       if (t->pid == t->tgid)
+       {
+          return true;
+       }
+       else
+       {
+          return false;
+       }
+    } else {
+        return false;
+    }
+
+}
+//#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 void __noreturn do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_ELSA_STUB)
+	struct process_event_data pe_data;
+#endif
 	TASKS_RCU(int tasks_rcu_i);
+
+//#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (is_critial_process(tsk)) {
+        printk("critical svc %d:%s exit with %ld !\n", tsk->pid, tsk->comm,code);
+    }
+//#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
@@ -773,6 +837,13 @@ void __noreturn do_exit(long code)
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
 	validate_creds_for_do_exit(tsk);
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_ELSA_STUB)
+	pe_data.pid = tsk->pid;
+	pe_data.uid = tsk->real_cred->uid;
+	pe_data.reason = code;
+	process_event_notifier_call_chain(PROCESS_EVENT_EXIT, &pe_data);
+#endif
 
 	/*
 	 * We're taking recursive faults here in do_exit. Safest is to just
