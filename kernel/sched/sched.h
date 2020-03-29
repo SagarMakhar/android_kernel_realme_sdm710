@@ -891,6 +891,11 @@ struct rq {
 	struct cpuidle_state *idle_state;
 	int idle_state_idx;
 #endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    struct list_head ux_thread_list;
+    int active_ux_balance;
+    struct cpu_stop_work ux_balance_work;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 static inline int cpu_of(struct rq *rq)
