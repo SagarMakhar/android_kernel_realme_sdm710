@@ -6,7 +6,6 @@ ccflags-y += -Idrivers/media/platform/msm/camera/cam_sensor_module/cam_sensor_ut
 ccflags-y += -Idrivers/media/platform/msm/camera/cam_req_mgr
 ccflags-y += -Idrivers/media/platform/msm/camera/cam_sensor_module/cam_cci
 ccflags-y += -Idrivers/media/platform/msm/camera/cam_smmu/
-ccflags-y += -Idrivers/media/platform/msm/camera/cam_core
 
 ifeq ($(CONFIG_PRODUCT_REALME),y)
 ccflags-y += -Idrivers/media/platform/msm/camera/cam_sensor_module/cam_ois/lc898123f40_update
