@@ -21,6 +21,12 @@
 #include "sdcardfs.h"
 #include <linux/fs_struct.h>
 #include <linux/ratelimit.h>
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include "dellog.h"
+#define DCIM_DELETE_ERR  999
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+#include "xattr.h"
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 const struct cred *override_fsids(struct sdcardfs_sb_info *sbi,
 		struct sdcardfs_inode_data *data)
@@ -112,6 +118,10 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	fsstack_copy_attr_times(dir, sdcardfs_lower_inode(dir));
 	fsstack_copy_inode_size(dir, d_inode(lower_parent_dentry));
 	fixup_lower_ownership(dentry, dentry->d_name.name);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+	sdcardfs_setxattr(lower_dentry);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 out:
 	task_lock(current);
@@ -135,11 +145,22 @@ static int sdcardfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct dentry *lower_dir_dentry;
 	struct path lower_path;
 	const struct cred *saved_cred = NULL;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	if (!check_caller_access_to_name(dir, &dentry->d_name)) {
 		err = -EACCES;
 		goto out_eacces;
 	}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (!is_oppo_skiped(info->data->oppo_flags)) {
+		if (!sdcardfs_unlink_uevent(dentry, info->data->oppo_flags)) {
+			err = DCIM_DELETE_ERR;
+			goto out_eacces;
+		}
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* save current_cred and override it */
 	saved_cred = override_fsids(SDCARDFS_SB(dir->i_sb),
@@ -166,18 +187,35 @@ static int sdcardfs_unlink(struct inode *dir, struct dentry *dentry)
 		err = 0;
 	if (err)
 		goto out;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	sdcardfs_allunlink_uevent(dentry);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	fsstack_copy_attr_times(dir, lower_dir_inode);
 	fsstack_copy_inode_size(dir, lower_dir_inode);
 	set_nlink(d_inode(dentry),
 		  sdcardfs_lower_inode(d_inode(dentry))->i_nlink);
 	d_inode(dentry)->i_ctime = dir->i_ctime;
 	d_drop(dentry); /* this is needed, else LTP fails (VFS won't do it) */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (info->data->oppo_flags && !err) {
+		DEL_LOG("[%u] del %s\n",
+			(unsigned int) current_uid().val,
+			dentry->d_name.name);
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 out:
 	unlock_dir(lower_dir_dentry);
 	dput(lower_dentry);
 	sdcardfs_put_lower_path(dentry, &lower_path);
 	revert_fsids(saved_cred);
 out_eacces:
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (info->data->oppo_flags && err == DCIM_DELETE_ERR) {
+		DEL_LOG("[%u] want to del %s\n",
+			(unsigned int) current_uid().val,
+			dentry->d_name.name);
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	return err;
 }
 
@@ -266,6 +304,11 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		goto out;
 	}
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+	sdcardfs_setxattr(lower_dentry);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 	/* if it is a local obb dentry, setup it with the base obbpath */
 	if (need_graft_path(dentry)) {
 
@@ -347,11 +390,22 @@ static int sdcardfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 	struct path lower_path;
 	const struct cred *saved_cred = NULL;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	if (!check_caller_access_to_name(dir, &dentry->d_name)) {
 		err = -EACCES;
 		goto out_eacces;
 	}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (!is_oppo_skiped(info->data->oppo_flags)) {
+		if (!sdcardfs_unlink_uevent(dentry, info->data->oppo_flags)) {
+			err = DCIM_DELETE_ERR;
+			goto out_eacces;
+		}
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* save current_cred and override it */
 	saved_cred = override_fsids(SDCARDFS_SB(dir->i_sb),
@@ -446,6 +500,10 @@ static int sdcardfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			 NULL, 0);
 	if (err)
 		goto out;
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	sdcardfs_rename_record(old_dentry, new_dentry);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* Copy attrs from lower dir, but i_uid/i_gid */
 	sdcardfs_copy_and_fix_attrs(new_dir, d_inode(lower_new_dir_dentry));
@@ -557,6 +615,10 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	int err;
 	struct inode tmp;
 	struct sdcardfs_inode_data *top = top_data_get(SDCARDFS_I(inode));
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	kgid_t media_gid = make_kgid(&init_user_ns, AID_MEDIA_RW);
+	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(inode->i_sb);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
@@ -579,6 +641,11 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	tmp.i_gid = make_kgid(&init_user_ns, get_gid(mnt, inode->i_sb, top));
 	tmp.i_mode = (inode->i_mode & S_IFMT)
 			| get_mode(mnt, SDCARDFS_I(inode), top);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (!sbi->options.multiuser && in_group_p(media_gid) && (mask & MAY_WRITE)) {
+		tmp.i_mode |= (MAY_WRITE << 3);
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	data_put(top);
 	tmp.i_sb = inode->i_sb;
 	if (IS_POSIXACL(inode))
@@ -786,6 +853,11 @@ out:
 const struct inode_operations sdcardfs_symlink_iops = {
 	.permission2	= sdcardfs_permission,
 	.setattr2	= sdcardfs_setattr,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+//	.getxattr	= sdcardfs_getxattr,
+	.listxattr	= sdcardfs_listxattr,
+#endif /*CONFIG_PRODUCT_REALME_SDM710 */
 	/* XXX Following operations are implemented,
 	 *     but FUSE(sdcard) or FAT does not support them
 	 *     These methods are *NOT* perfectly tested.
@@ -807,6 +879,11 @@ const struct inode_operations sdcardfs_dir_iops = {
 	.setattr	= sdcardfs_setattr_wrn,
 	.setattr2	= sdcardfs_setattr,
 	.getattr	= sdcardfs_getattr,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+//	.getxattr	= sdcardfs_getxattr,
+	.listxattr	= sdcardfs_listxattr,
+#endif /*CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 const struct inode_operations sdcardfs_main_iops = {
@@ -815,4 +892,9 @@ const struct inode_operations sdcardfs_main_iops = {
 	.setattr	= sdcardfs_setattr_wrn,
 	.setattr2	= sdcardfs_setattr,
 	.getattr	= sdcardfs_getattr,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Jiemin.Zhu@AD.Android.SdcardFs, 2018/08/15, Add for using lower xattr to record uid
+//	.getxattr	= sdcardfs_getxattr,
+	.listxattr	= sdcardfs_listxattr,
+#endif /*CONFIG_PRODUCT_REALME_SDM710 */
 };

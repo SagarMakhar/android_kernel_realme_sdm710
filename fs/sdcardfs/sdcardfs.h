@@ -114,6 +114,14 @@ typedef enum {
 	PERM_ANDROID_PACKAGE,
 	/* This node is "/Android/[data|media|obb]/[package]/cache" */
 	PERM_ANDROID_PACKAGE_CACHE,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	/* This node is "/DCIM" */
+	PERM_DCIM,
+	/* This node is /Tencent */
+	PERM_TENCENT,
+	/* This node is /Tencent/MicroMsg */
+	PERM_TENCENT_MICROMSG,
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 } perm_t;
 
 struct sdcardfs_sb_info;
@@ -157,6 +165,19 @@ struct sdcardfs_file_info {
 	const struct vm_operations_struct *lower_vm_ops;
 };
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+/* DCIM/Camera /DCIM/Screenshots */
+#define OPPO_PICTURE_BASE		0x00000001
+/* /.ColorOSGalleryRecycler */
+#define OPPO_PICTURE_RECYCLER	0x00000002
+/* /DCIM/MyAlbums */
+#define OPPO_PICTURE_ALBUMS		0x00000004
+/* /Tencent/MicroMsg/WeiXin */
+#define OPPO_PICTURE_TENCENT_MM	0x00000008
+/* /Tencent/QQ_Images /Tencent/QQfile_recv */
+#define OPPO_PICTURE_TENCENT_QQ	0x00000010
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 struct sdcardfs_inode_data {
 	struct kref refcount;
 	bool abandoned;
@@ -167,6 +188,9 @@ struct sdcardfs_inode_data {
 	bool under_android;
 	bool under_cache;
 	bool under_obb;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	unsigned int oppo_flags;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 /* sdcardfs inode data in memory */
@@ -650,5 +674,12 @@ static inline bool qstr_case_eq(const struct qstr *q1, const struct qstr *q2)
 }
 
 #define QSTR_LITERAL(string) QSTR_INIT(string, sizeof(string)-1)
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+int sdcardfs_unlink_uevent(struct dentry *dentry, unsigned int mask);
+int is_oppo_skiped(unsigned int mask);
+void sdcardfs_rename_record(struct dentry *old_dentry, struct dentry *new_dentry);
+int sdcardfs_allunlink_uevent(struct dentry *dentry);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 #endif	/* not _SDCARDFS_H_ */
