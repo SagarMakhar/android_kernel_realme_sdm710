@@ -72,11 +72,20 @@ EXPORT_SYMBOL(msm_drm_unregister_client);
  * @v: notifier data, inculde display id and display blank
  *     event(unblank or power down).
  */
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 static int msm_drm_notifier_call_chain(unsigned long val, void *v)
 {
 	return blocking_notifier_call_chain(&msm_drm_notifier_list, val,
 					    v);
 }
+#else /*CONFIG_PRODUCT_REALME_SDM710*/
+int msm_drm_notifier_call_chain(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&msm_drm_notifier_list, val,
+					    v);
+}
+EXPORT_SYMBOL(msm_drm_notifier_call_chain);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 /* block until specified crtcs are no longer pending update, and
  * atomically mark them as pending update
@@ -256,11 +265,13 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		DRM_DEBUG_ATOMIC("disabling [ENCODER:%d:%s]\n",
 				 encoder->base.id, encoder->name);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
 		blank = MSM_DRM_BLANK_POWERDOWN;
 		notifier_data.data = &blank;
 		notifier_data.id = crtc_idx;
-		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
-					     &notifier_data);
+		//msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+					     //&notifier_data);
+#endif
 		/*
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call disable hooks twice.
@@ -276,8 +287,10 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 
 		drm_bridge_post_disable(encoder->bridge);
-		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
-					    &notifier_data);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		//msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
+		//			    &notifier_data);
+#endif
 	}
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
@@ -480,8 +493,10 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 			notifier_data.id =
 				connector->state->crtc->index;
 			DRM_DEBUG_ATOMIC("Notify early unblank\n");
-			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
-					    &notifier_data);
+			#ifdef CONFIG_PRODUCT_REALME_SDM710
+			//msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+			//    &notifier_data);
+			#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 		}
 		/*
 		 * Each encoder has at most one connector (since we always steal
@@ -529,8 +544,10 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		drm_bridge_enable(encoder->bridge);
 		if (connector->state->crtc->state->active_changed) {
 			DRM_DEBUG_ATOMIC("Notify unblank\n");
-			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
-					    &notifier_data);
+			#ifdef CONFIG_PRODUCT_REALME_SDM710
+			//msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
+			//		    &notifier_data);
+			#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 		}
 	}
 	SDE_ATRACE_END("msm_enable");
