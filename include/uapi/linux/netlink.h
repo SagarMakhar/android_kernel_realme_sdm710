@@ -30,7 +30,19 @@
 #define NETLINK_SOCKEV          22      /* Socket Administrative Events */
 #define NETLINK_INET_DIAG	NETLINK_SOCK_DIAG
 
-#define MAX_LINKS 32		
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HANS)
+#define NETLINK_OPPO_HANS 28 /* Socket for freezing solution*/
+#endif
+
+#ifndef CONFIG_PRODUCT_REALME_SDM710
+#define MAX_LINKS 33
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
+#define NETLINK_OPPO_NF_HOOKS	32	/*OPPO netfilter hooks*/
+#define NETLINK_OPPO_SLA  33      /*SLA NETLINK SOCK*/
+#define NETLINK_OPPO_APPS_MONITOR  35      /* Apps monitor NETLINK SOCK */
+#define MAX_LINKS 37
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 
 struct sockaddr_nl {
 	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/

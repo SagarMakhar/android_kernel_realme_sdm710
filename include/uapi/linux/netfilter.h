@@ -14,7 +14,14 @@
 #define NF_QUEUE 3
 #define NF_REPEAT 4
 #define NF_STOP 5
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define NF_IMQ_QUEUE 6
+#define NF_MAX_VERDICT NF_IMQ_QUEUE
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
 #define NF_MAX_VERDICT NF_STOP
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 
 /* we overload the higher bits for encoding auxiliary data such as the queue
  * number or errno values. Not nice, but better than additional function
