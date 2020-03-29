@@ -18,6 +18,13 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include "internal.h"
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <linux/oppo_ion.h>
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern unsigned long gpu_total(void);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 void __attribute__((weak)) arch_report_meminfo(struct seq_file *m)
 {
@@ -153,6 +160,17 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	show_val_kb(m, "CmaFree:        ",
 		    global_page_state(NR_FREE_CMA_PAGES));
 #endif
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	show_val_kb(m, "Oppo2Free:        ",global_page_state(NR_FREE_OPPO2_PAGES));
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_ION)
+        show_val_kb(m, "IonTotalCache:   ", global_page_state(NR_IONCACHE_PAGES));
+        show_val_kb(m, "IonTotalUsed:   ", ion_total() >> PAGE_SHIFT);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		show_val_kb(m, "GPUTotalUsed:   ", gpu_total() >> PAGE_SHIFT);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	hugetlb_report_meminfo(m);
 

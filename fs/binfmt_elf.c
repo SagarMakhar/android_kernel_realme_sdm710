@@ -40,6 +40,10 @@
 #include <asm/param.h>
 #include <asm/page.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #ifndef user_long_t
 #define user_long_t long
 #endif
@@ -2169,6 +2173,10 @@ static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
 	shdr4extnum->sh_info = segs;
 }
 
+#if defined(CONFIG_PRODUCT_REALME_SDM710)
+static elf_addr_t *oppo_coredump_addr = NULL;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 end */
+
 /*
  * Actual dumper
  *
@@ -2258,7 +2266,16 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710)
+	if(oppo_daily_build() && oppo_coredump_addr && (((segs - 1) * sizeof(*vma_filesz)) <= 64*1024))
+		vma_filesz = oppo_coredump_addr;
+	else
+		vma_filesz = kmalloc_array(segs - 1, sizeof(*vma_filesz), GFP_KERNEL);
+#else
 	vma_filesz = kmalloc_array(segs - 1, sizeof(*vma_filesz), GFP_KERNEL);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 	if (!vma_filesz)
 		goto end_coredump;
 
@@ -2366,7 +2383,16 @@ end_coredump:
 cleanup:
 	free_note_info(&info);
 	kfree(shdr4extnum);
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710)
+	if (oppo_daily_build() && (oppo_coredump_addr != NULL) && (vma_filesz == oppo_coredump_addr))
+		memset(oppo_coredump_addr, 0, 64*1024);
+	else
+		kfree(vma_filesz);
+#else
 	kfree(vma_filesz);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 end */
+
 	kfree(phdr4note);
 	kfree(elf);
 out:
@@ -2377,12 +2403,24 @@ out:
 
 static int __init init_elf_binfmt(void)
 {
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710)
+	if (oppo_daily_build())
+		oppo_coredump_addr = kmalloc(64*1024, GFP_KERNEL);;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 end */
+
 	register_binfmt(&elf_format);
 	return 0;
 }
 
 static void __exit exit_elf_binfmt(void)
 {
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710)
+	if(oppo_daily_build() && oppo_coredump_addr)
+		kfree(oppo_coredump_addr);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 end */
+
 	/* Remove the COFF and ELF loaders. */
 	unregister_binfmt(&elf_format);
 }
