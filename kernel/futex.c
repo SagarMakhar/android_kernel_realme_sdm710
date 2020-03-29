@@ -2386,7 +2386,15 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 		 * is no timeout, or if it has yet to expire.
 		 */
 		if (!timeout || timeout->task)
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+        {
+            current->in_futex = 1;
+#endif
 			freezable_schedule();
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+            current->in_futex = 0;
+        }
+#endif
 	}
 	__set_current_state(TASK_RUNNING);
 }

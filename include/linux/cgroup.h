@@ -98,6 +98,9 @@ int cgroup_rm_cftypes(struct cftype *cfts);
 void cgroup_file_notify(struct cgroup_file *cfile);
 
 int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+int task_cgroup_path_by_root(struct task_struct *task, const char *rootname, char *buf, size_t buflen);
+#endif
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
 int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk);

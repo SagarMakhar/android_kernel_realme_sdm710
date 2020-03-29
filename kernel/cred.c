@@ -427,6 +427,9 @@ int commit_creds(struct cred *new)
 {
 	struct task_struct *task = current;
 	const struct cred *old = task->real_cred;
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_ELSA_STUB)
+	struct process_event_data pe_data;
+#endif
 
 	kdebug("commit_creds(%p{%d,%d})", new,
 	       atomic_read(&new->usage),
@@ -494,6 +497,16 @@ int commit_creds(struct cred *new)
 	    !gid_eq(new->sgid,  old->sgid) ||
 	    !gid_eq(new->fsgid, old->fsgid))
 		proc_id_connector(task, PROC_EVENT_GID);
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_ELSA_STUB)
+	if (!uid_eq(new->uid, old->uid)) {
+		pe_data.pid = task->pid;
+		pe_data.uid = new->uid;
+		pe_data.old_uid = old->uid;
+		pe_data.reason = -1;
+		process_event_notifier_call_chain(PROCESS_EVENT_UID, &pe_data);
+	}
+#endif
 
 	/* release the old obj and subj refs both */
 	put_cred(old);
