@@ -24,6 +24,10 @@
 #include "adreno_trace.h"
 #include "kgsl_sharedmem.h"
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_kevent_feedback.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #define DRAWQUEUE_NEXT(_i, _s) (((_i) + 1) % (_s))
 
 /* Time in ms after which the dispatcher tries to schedule an unscheduled RB */
@@ -2066,9 +2070,46 @@ replay:
 	kfree(replay);
 }
 
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static pid_t snapshotpid = -1;
+static int snapshotfault = -1;
+static void setfaulttype(int fault)
+{
+    snapshotfault = fault;
+}
+
+uint32_t GPUBKDRHash(char* str, uint32_t len)
+{
+    uint32_t seed = 131313; /* 31 131 1313 13131 131313 etc.. */
+    uint32_t hash = 0;
+    uint32_t i    = 0;
+
+    if (str == NULL) {
+        return 0;
+    }
+
+    for(i = 0; i < len; str++, i++) {
+        hash = (hash * seed) + (*str);
+    }
+
+    return hash;
+}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 static void do_header_and_snapshot(struct kgsl_device *device, int fault,
 		struct adreno_ringbuffer *rb, struct kgsl_drawobj_cmd *cmdobj)
 {
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	uint8_t uuidsrc[100] = "";
+	uint32_t uuidsrcLength = 0;
+	uint32_t uuid          = 0;
+
+	uint8_t payload[100] = "";
+	pid_t pid = -1;
+	char processname[32]={'\0'};
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 	struct kgsl_drawobj *drawobj = DRAWOBJ(cmdobj);
 
 	/* Always dump the snapshot on a non-drawobj failure */
@@ -2085,9 +2126,32 @@ static void do_header_and_snapshot(struct kgsl_device *device, int fault,
 	/* Print the fault header */
 	adreno_fault_header(device, rb, cmdobj);
 
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 	if (!(drawobj->context->flags & KGSL_CONTEXT_NO_SNAPSHOT))
 		kgsl_device_snapshot(device, drawobj->context,
 					fault & ADRENO_GMU_FAULT);
+#else
+	if (!(drawobj->context->flags & KGSL_CONTEXT_NO_SNAPSHOT)){
+		kgsl_device_snapshot(device, drawobj->context,
+					fault & ADRENO_GMU_FAULT);
+        if (drawobj->context != NULL) {
+            pid = drawobj->context->proc_priv->pid;
+            strlcpy(processname, drawobj->context->proc_priv->comm, TASK_COMM_LEN);
+        }
+
+        if (snapshotpid != pid) {
+            uuidsrcLength = scnprintf(uuidsrc, sizeof(uuidsrc), "%s%d%d", processname, pid, snapshotfault);
+            uuid = GPUBKDRHash(uuidsrc, uuidsrcLength);
+            device->snapshot->snapshot_hashid = uuid;
+            //dev_err(device->dev,"uuidsrc=%u, %s, line=%d, process=%s, pid=%d", uuid, __FUNCTION__, __LINE__, processname, pid);
+
+            scnprintf(payload, sizeof(payload), "NULL$$EventID@@%d$$EventData@@FaultType=%x,pid=%d$$PackageName@@%s$$fid@@%u",
+                                        OPPO_MM_DIRVER_FB_EVENT_ID_GPU_FAULT, snapshotfault, pid, processname, uuid);
+            upload_mm_kevent_feedback_data(OPPO_MM_DIRVER_FB_EVENT_MODULE_DISPLAY,payload);//gpu hang
+            snapshotpid = pid;
+        }
+    }
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 }
 
 static int dispatcher_do_fault(struct adreno_device *adreno_dev)
@@ -2216,6 +2280,9 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 		adreno_readreg64(adreno_dev, ADRENO_REG_CP_IB1_BASE,
 			ADRENO_REG_CP_IB1_BASE_HI, &base);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    setfaulttype(fault);
+#endif
 	do_header_and_snapshot(device, fault, hung_rb, cmdobj);
 
 	/* Turn off the KEEPALIVE vote from the ISR for hard fault */

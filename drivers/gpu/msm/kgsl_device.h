@@ -338,6 +338,9 @@ struct kgsl_device {
 	struct clk *l3_clk;
 	unsigned int l3_freq[MAX_L3_LEVELS];
 	unsigned int num_l3_pwrlevels;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	bool snapshot_control;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 };
 
 #define KGSL_MMU_DEVICE(_mmu) \
@@ -539,6 +542,9 @@ struct kgsl_snapshot {
 	bool first_read;
 	bool gmu_fault;
 	bool recovered;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	uint32_t snapshot_hashid;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 };
 
 /**

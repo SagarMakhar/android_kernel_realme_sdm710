@@ -734,6 +734,9 @@ void kgsl_device_snapshot(struct kgsl_device *device,
 			&pa, snapshot->size);
 
 	sysfs_notify(&device->snapshot_kobj, NULL, "timestamp");
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	sysfs_notify(&device->snapshot_kobj, NULL, "snapshot_hashid");
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	/*
 	 * Queue a work item that will save the IB data in snapshot into
@@ -809,6 +812,10 @@ static int snapshot_release(struct kgsl_device *device,
 	return ret;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static bool snapshot_ontrol_on = 0;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 /* Dump the sysfs binary data to the user */
 static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 	struct bin_attribute *attr, char *buf, loff_t off,
@@ -822,6 +829,14 @@ static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 
 	if (device == NULL)
 		return 0;
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    if (snapshot_ontrol_on) {
+        KGSL_DRV_ERR(device,
+                "snapshot: snapshot_ontrol_on is true, skip snapshot\n");
+        return 0;
+	}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	mutex_lock(&device->mutex);
 	snapshot = device->snapshot;
@@ -949,6 +964,32 @@ static ssize_t force_panic_store(struct kgsl_device *device, const char *buf,
 	return (ssize_t) ret < 0 ? ret : count;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static ssize_t snapshot_control_show(struct kgsl_device *device, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", device->snapshot_control);
+}
+
+static ssize_t snapshot_control_store(struct kgsl_device *device, const char *buf,
+	size_t count)
+{
+	unsigned int val = 0;
+	int ret;
+
+	if (device && count > 0)
+		device->snapshot_control = 0;
+
+	ret = kgsl_sysfs_store(buf, &val);
+
+	if (!ret && device){
+		device->snapshot_control = (bool)val;
+		snapshot_ontrol_on = device->snapshot_control;
+	}
+
+	return (ssize_t) ret < 0 ? ret : count;
+}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 /* Show the prioritize_unrecoverable status */
 static ssize_t prioritize_unrecoverable_show(
 		struct kgsl_device *device, char *buf)
@@ -1050,6 +1091,19 @@ static SNAPSHOT_ATTR(snapshot_crashdumper, 0644, snapshot_crashdumper_show,
 static SNAPSHOT_ATTR(snapshot_legacy, 0644, snapshot_legacy_show,
 	snapshot_legacy_store);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static ssize_t snapshot_hashid_show(struct kgsl_device *device, char *buf)
+{
+	unsigned int uid =
+		device->snapshot ? device->snapshot->snapshot_hashid : 0;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", uid);
+}
+static SNAPSHOT_ATTR(snapshot_hashid, 0666, snapshot_hashid_show, NULL);
+static SNAPSHOT_ATTR(snapshot_control, 0666, snapshot_control_show, snapshot_control_store);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+
 static ssize_t snapshot_sysfs_show(struct kobject *kobj,
 	struct attribute *attr, char *buf)
 {
@@ -1132,6 +1186,9 @@ int kgsl_device_snapshot_init(struct kgsl_device *device)
 	device->prioritize_unrecoverable = true;
 	device->snapshot_crashdumper = 1;
 	device->snapshot_legacy = 0;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	device->snapshot_control = 0;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	ret = kobject_init_and_add(&device->snapshot_kobj, &ktype_snapshot,
 		&device->dev->kobj, "snapshot");
@@ -1168,6 +1225,16 @@ int kgsl_device_snapshot_init(struct kgsl_device *device)
 	ret  = sysfs_create_file(&device->snapshot_kobj,
 			&attr_snapshot_legacy.attr);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	ret  = sysfs_create_file(&device->snapshot_kobj, &attr_snapshot_hashid.attr);
+	if (ret)
+		goto done;
+
+	ret  = sysfs_create_file(&device->snapshot_kobj, &attr_snapshot_control.attr);
+	if (ret)
+		goto done;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 done:
 	return ret;
 }
@@ -1194,6 +1261,9 @@ void kgsl_device_snapshot_close(struct kgsl_device *device)
 	device->snapshot_faultcount = 0;
 	device->force_panic = 0;
 	device->snapshot_crashdumper = 1;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	device->snapshot_control = 0;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 }
 EXPORT_SYMBOL(kgsl_device_snapshot_close);
 
