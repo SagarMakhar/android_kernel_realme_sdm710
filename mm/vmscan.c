@@ -60,6 +60,13 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/vmscan.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <linux/mmscan_balance.h>
+#define DEF_KSWAPD_THREADS_PER_NODE  (1)
+int kswapd_threads_current = DEF_KSWAPD_THREADS_PER_NODE;
+EXPORT_SYMBOL_GPL(kswapd_threads_current);
+#endif
+
 struct scan_control {
 	/* How many pages shrink_list() should reclaim */
 	unsigned long nr_to_reclaim;
@@ -117,6 +124,10 @@ struct scan_control {
 	 * on memory until last task zap it.
 	 */
 	struct vm_area_struct *target_vma;
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_PROCESS_RECLAIM)
+	struct mm_walk *walk;
+#endif
 };
 
 #ifdef ARCH_HAS_PREFETCH
@@ -151,6 +162,14 @@ struct scan_control {
  * From 0 .. 100.  Higher means more swappy.
  */
 int vm_swappiness = 60;
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+/*
+ * Direct reclaim swappiness, exptct 0 - 60. Higher means more swappy and slower.
+ */
+int direct_vm_swappiness = 60;
+#endif
+
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
@@ -159,6 +178,23 @@ unsigned long vm_total_pages;
 
 static LIST_HEAD(shrinker_list);
 static DECLARE_RWSEM(shrinker_rwsem);
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//gaolong@SRC.shanghai, 2018/09/04, add pages swap callback for hypnus
+static ATOMIC_NOTIFIER_HEAD(balance_pg_notifier);
+
+int balance_pg_register_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&balance_pg_notifier, nb);
+}
+EXPORT_SYMBOL(balance_pg_register_notifier);
+
+int balance_pg_unregister_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&balance_pg_notifier, nb);
+}
+EXPORT_SYMBOL(balance_pg_unregister_notifier);
+#endif
 
 #ifdef CONFIG_MEMCG
 static bool global_reclaim(struct scan_control *sc)
@@ -975,6 +1011,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		bool lazyfree = false;
 		int ret = SWAP_SUCCESS;
 
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_PROCESS_RECLAIM)
+		if (sc->walk && is_reclaim_should_cancel(sc->walk))
+			break;
+#endif
+
 		cond_resched();
 
 		page = lru_to_page(page_list);
@@ -1367,8 +1408,13 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 }
 
 #ifdef CONFIG_PROCESS_RECLAIM
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+unsigned long reclaim_pages_from_list(struct list_head *page_list,
+			struct vm_area_struct *vma, struct mm_walk *walk)
+#else
 unsigned long reclaim_pages_from_list(struct list_head *page_list,
 					struct vm_area_struct *vma)
+#endif
 {
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
@@ -1377,6 +1423,9 @@ unsigned long reclaim_pages_from_list(struct list_head *page_list,
 		.may_unmap = 1,
 		.may_swap = 1,
 		.target_vma = vma,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		.walk = walk,
+#endif
 	};
 
 	unsigned long nr_reclaimed;
@@ -1633,7 +1682,11 @@ int isolate_lru_page(struct page *page)
 	int ret = -EBUSY;
 
 	VM_BUG_ON_PAGE(!page_count(page), page);
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_PROCESS_RECLAIM)
+	WARN_RATELIMIT((!current_is_reclaimer() && PageTail(page)), "trying to isolate tail page");
+#else
 	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
+#endif
 
 	if (PageLRU(page)) {
 		struct zone *zone = page_zone(page);
@@ -1808,7 +1861,22 @@ static bool inactive_reclaimable_pages(struct lruvec *lruvec,
 
 	return false;
 }
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern bool is_fg(int uid);
+static inline int get_current_adj(void)
+{
+	int cur_uid;
 
+	if (current->signal->oom_score_adj < 0)
+		return 0;
+#ifdef CONFIG_OPPO_FG_OPT
+	cur_uid = current_uid().val;
+	if (is_fg(cur_uid))
+		return 0;
+#endif
+	return current->signal->oom_score_adj;
+}
+#endif /*VENDOR*/
 /*
  * shrink_inactive_list() is a helper for shrink_node().  It returns the number
  * of reclaimed pages
@@ -1954,8 +2022,13 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	 * is congested. Allow kswapd to continue until it starts encountering
 	 * unqueued dirty pages or cycling through the LRU too quickly.
 	 */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (!sc->hibernation_mode && !current_is_kswapd() &&
+	    current_may_throttle() && get_current_adj())
+#else
 	if (!sc->hibernation_mode && !current_is_kswapd() &&
 	    current_may_throttle())
+#endif
 		wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
 
 	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
@@ -2166,8 +2239,13 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
 
 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (gb && file)
+		inactive_ratio = min(2UL, int_sqrt(10 * gb));
+#else
 	if (gb)
 		inactive_ratio = int_sqrt(10 * gb);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	else
 		inactive_ratio = 1;
 
@@ -2217,8 +2295,16 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	unsigned long ap, fp;
 	enum lru_list lru;
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//yixue.ge@psw.bsp.kernel.driver 20170810 modify for reserver some zram disk size
+	if (!current_is_kswapd()) {
+		swappiness = direct_vm_swappiness;
+	}
+	if (!sc->may_swap || (mem_cgroup_get_nr_swap_pages(memcg) <= total_swap_pages>>6)) {
+#else
 	/* If we have no swap space, do not bother scanning anon pages. */
 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
+#endif
 		scan_balance = SCAN_FILE;
 		goto out;
 	}
@@ -2391,6 +2477,12 @@ out:
 		nr[lru] = scan;
 	}
 }
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define for_each_evictable_lru_file(lru) for (lru = LRU_INACTIVE_FILE; lru <= LRU_ACTIVE_FILE; lru++)
+#define for_each_evictable_lru_anon(lru) for (lru = LRU_INACTIVE_ANON; lru <= LRU_ACTIVE_ANON; lru++)
+static unsigned  int swap_max_ratio = 1;
+module_param_named(swap_max_ratio, swap_max_ratio, uint, S_IRUGO | S_IWUSR);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 /*
  * This is a basic per-node page freer.  Used by both kswapd and direct reclaim.
@@ -2432,7 +2524,26 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 					nr[LRU_INACTIVE_FILE]) {
 		unsigned long nr_anon, nr_file, percentage;
 		unsigned long nr_scanned;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		for_each_evictable_lru_file(lru) {
+			if (nr[lru]) {
+				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
+				nr[lru] -= nr_to_scan;
 
+				nr_reclaimed += shrink_list(lru, nr_to_scan,
+								lruvec, sc);
+			}
+		}
+		for_each_evictable_lru_anon(lru) {
+			if (nr[lru]) {
+				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
+				nr[lru] -= nr_to_scan;
+
+				nr_reclaimed += shrink_list(lru, nr_to_scan,
+								lruvec, sc);
+			}
+		}
+#else
 		for_each_evictable_lru(lru) {
 			if (nr[lru]) {
 				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
@@ -2442,7 +2553,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 							    lruvec, sc);
 			}
 		}
-
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 		cond_resched();
 
 		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
@@ -3039,7 +3150,9 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 		.may_unmap = 1,
 		.may_swap = 1,
 	};
-
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	sc.nr_to_reclaim = SWAP_CLUSTER_MAX  <<  swap_max_ratio;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	/*
 	 * Do not enter reclaim if fatal signal was delivered while throttled.
 	 * 1 is returned so that the page allocator does not OOM kill at this
@@ -3470,6 +3583,9 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
 		 */
 		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		atomic_notifier_call_chain(&balance_pg_notifier, BALANCE_PG_END, NULL);
+#endif
 		remaining = schedule_timeout(HZ/10);
 
 		/*
@@ -3575,6 +3691,9 @@ kswapd_try_sleep:
 		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
 					classzone_idx);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        _update_kswapd_load();
+#endif
 		/* Read the new order and classzone_idx */
 		alloc_order = reclaim_order = pgdat->kswapd_order;
 		classzone_idx = kswapd_classzone_idx(pgdat, 0);
@@ -3602,6 +3721,10 @@ kswapd_try_sleep:
 		 */
 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
 						alloc_order);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (alloc_order > MIN_ORDER_NOTIFY_HYPNUS)
+			atomic_notifier_call_chain(&balance_pg_notifier, BALANCE_PG_BEGIN, NULL);
+#endif
 		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
 		if (reclaim_order < alloc_order)
 			goto kswapd_try_sleep;

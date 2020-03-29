@@ -946,7 +946,12 @@ const char * const vmstat_text[] = {
 	"numa_other",
 #endif
 	"nr_free_cma",
-
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	"nr_free_oppo2",
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        "nr_ioncache_pages",
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	/* Node-based counters */
 	"nr_inactive_anon",
 	"nr_active_anon",
