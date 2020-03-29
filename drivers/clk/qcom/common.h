@@ -28,9 +28,13 @@ struct parent_map;
 struct qcom_cc_desc {
 	const struct regmap_config *config;
 	struct clk_regmap **clks;
-	struct clk_hw **hwclks;
+	//#ifdef CONFIG_PRODUCT_REALME_SDM710
+	//struct clk_hw **hwclks;
+	//#endif
 	size_t num_clks;
-	size_t num_hwclks;
+	//#ifdef CONFIG_PRODUCT_REALME_SDM710
+	//size_t num_hwclks;
+	//endif
 	const struct qcom_reset_map *resets;
 	size_t num_resets;
 	struct gdsc **gdscs;
