@@ -135,6 +135,11 @@ struct cpufreq_policy {
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+	/* For get changed freq info */
+	char 			change_comm[TASK_COMM_LEN];
+	unsigned int 	org_max;
+#endif
 };
 
 /* Only for ACPI */
@@ -920,6 +925,10 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 	return false;
 }
 #endif
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+struct list_head *get_cpufreq_policy_list(void);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
