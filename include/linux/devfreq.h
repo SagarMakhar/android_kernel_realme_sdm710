@@ -243,6 +243,11 @@ extern void devm_devfreq_unregister_notifier(struct device *dev,
 extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 						int index);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int devfreq_set_limit(struct devfreq *df, unsigned long min, unsigned long max);
+extern int devfreq_get_limit(struct devfreq *df, unsigned long *min, unsigned long *max);
+#endif
+
 /**
  * devfreq_update_stats() - update the last_status pointer in struct devfreq
  * @df:		the devfreq instance whose status needs updating
@@ -418,6 +423,19 @@ static inline int devfreq_update_stats(struct devfreq *df)
 {
 	return -EINVAL;
 }
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static inline int devfreq_set_limit(struct devfreq *df, unsigned long min, unsigned long max)
+{
+        return -EINVAL;
+}
+
+static inline int devfreq_get_limit(struct devfreq *df, unsigned long *min, unsigned long *max)
+{
+        return -EINVAL;
+}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #endif /* CONFIG_PM_DEVFREQ */
 
 #endif /* __LINUX_DEVFREQ_H__ */

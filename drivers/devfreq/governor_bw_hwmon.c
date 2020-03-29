@@ -114,10 +114,17 @@ static ssize_t store_##name(struct device *dev,				\
 	return count;							\
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define gov_attr(__attr, min, max)	\
+show_attr(__attr)			\
+store_attr(__attr, (min), (max))	\
+static DEVICE_ATTR(__attr, 0664, show_##__attr, store_##__attr)
+#else
 #define gov_attr(__attr, min, max)	\
 show_attr(__attr)			\
 store_attr(__attr, (min), (max))	\
 static DEVICE_ATTR(__attr, 0644, show_##__attr, store_##__attr)
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 #define show_list_attr(name, n) \
 static ssize_t show_list_##name(struct device *dev,			\
