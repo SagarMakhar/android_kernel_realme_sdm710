@@ -43,6 +43,14 @@
 #include <linux/msm_dma_iommu_mapping.h>
 #include <trace/events/kmem.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+// Add for ion used cnt
+#include <linux/module.h>
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+#include <linux/memory_monitor.h>
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -181,6 +189,17 @@ static void ion_buffer_add(struct ion_device *dev,
 	rb_insert_color(&buffer->node, &dev->buffers);
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static atomic_long_t ion_total_size;
+static bool ion_cnt_enable = true;
+unsigned long ion_total(void)
+{
+	if (!ion_cnt_enable)
+		return 0;
+	return (unsigned long)atomic_long_read(&ion_total_size);
+}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 /* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 				     struct ion_device *dev,
@@ -267,6 +286,10 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
 	atomic_long_add(len, &heap->total_allocated);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (ion_cnt_enable)
+		atomic_long_add(buffer->size, &ion_total_size);
+#endif
 	return buffer;
 
 err:
@@ -288,6 +311,10 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 
 	atomic_long_sub(buffer->size, &buffer->heap->total_allocated);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (ion_cnt_enable)
+		atomic_long_sub(buffer->size, &ion_total_size);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	buffer->heap->ops->free(buffer);
 	vfree(buffer->pages);
 	kfree(buffer);
@@ -561,6 +588,9 @@ static struct ion_handle *__ion_alloc(
 	const unsigned int MAX_DBG_STR_LEN = 64;
 	char dbg_str[MAX_DBG_STR_LEN];
 	unsigned int dbg_str_idx = 0;
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+	unsigned long oppo_ionwait_start = jiffies;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	dbg_str[0] = '\0';
 
@@ -660,6 +690,9 @@ static struct ion_handle *__ion_alloc(
 		ion_handle_put(handle);
 		handle = ERR_PTR(ret);
 	}
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+	oppo_ionwait_monitor(jiffies_to_msecs(jiffies - oppo_ionwait_start));
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	return handle;
 }
@@ -1883,6 +1916,38 @@ static void ion_heap_print_debug(struct seq_file *s, struct ion_heap *heap)
 		ion_debug_mem_map_destroy(&mem_map);
 	}
 }
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+/* yanghao@PSW.Kernel.Stability, 2019/04/26, Add for Process memory statistics */
+size_t get_ion_heap_by_pid(pid_t pid)
+{
+	struct ion_heap*  ionsystemheap = NULL;
+	struct ion_device *dev = NULL;
+	struct rb_node *n;
+	size_t total_size = 0;
+
+	ionsystemheap = get_system_ion_heap(ION_HEAP_TYPE_SYSTEM);
+	if (!ionsystemheap || !ionsystemheap->dev)
+		return 0;
+
+	dev = ionsystemheap->dev;
+
+	down_read(&dev->lock);
+	for (n = rb_first(&dev->clients); n; n = rb_next(n)) {
+		struct ion_client *client = rb_entry(n, struct ion_client,
+				node);
+		size_t size = ion_debug_heap_total(client, ionsystemheap->id);
+
+		if (client->pid == pid) {
+			total_size += size;
+		}
+	}
+	up_read(&dev->lock);
+
+	return total_size;
+}
+EXPORT_SYMBOL(get_ion_heap_by_pid);
+#endif
 
 static int ion_debug_heap_show(struct seq_file *s, void *unused)
 {
