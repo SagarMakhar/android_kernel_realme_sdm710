@@ -38,6 +38,9 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 
 	return 0;
 }
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+EXPORT_SYMBOL(snd_soc_cache_init);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 /*
  * NOTE: keep in mind that this function might be called
