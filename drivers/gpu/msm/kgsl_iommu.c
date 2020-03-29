@@ -1087,6 +1087,10 @@ static void setup_64bit_pagetable(struct kgsl_mmu *mmu,
 		pt->compat_va_end = KGSL_IOMMU_SECURE_BASE(mmu);
 		pt->va_start = KGSL_IOMMU_VA_BASE64;
 		pt->va_end = KGSL_IOMMU_VA_END64;
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+		gpu_compat_high_limit_addr = pt->compat_va_end;
+#endif
 	}
 
 	if (pagetable->name != KGSL_MMU_GLOBAL_PT &&
