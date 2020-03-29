@@ -159,6 +159,9 @@ struct sd_ssr {
 	unsigned int		au;			/* In sectors */
 	unsigned int		erase_timeout;		/* In milliseconds */
 	unsigned int		erase_offset;		/* In milliseconds */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	unsigned int		speed_class;		/* speed_class */
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 struct sd_switch_caps {

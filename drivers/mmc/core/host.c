@@ -696,6 +696,9 @@ again:
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        host->card_stuck_in_programing_status = false;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	host->parent = dev;
 	host->class_dev.parent = dev;
 	host->class_dev.class = &mmc_host_class;
@@ -717,6 +720,9 @@ again:
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    host->detect_change_retry = 5;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	setup_timer(&host->retune_timer, mmc_retune_timer, (unsigned long)host);
 
 	mutex_init(&host->rpmb_req_mutex);

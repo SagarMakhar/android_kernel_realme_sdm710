@@ -114,6 +114,9 @@ struct mmc_request {
 	struct mmc_host		*host;
 	struct mmc_cmdq_req	*cmdq_req;
 	struct request *req;
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_OPPO_HEALTHINFO)
+	ktime_t cmdq_request_time_start;
+#endif
 
 	/* Allow other commands during this ongoing data transfer or busy wait */
 	bool			cap_cmd_during_tfr;

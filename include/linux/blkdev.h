@@ -1780,7 +1780,6 @@ static const u_int64_t latency_x_axis_us[] = {
 	9000,
 	10000
 #ifdef CONFIG_PRODUCT_REALME_SDM710
-//yh@BSP.Storage.UFS, 2019-02-19 add for ufs IO latency calc
 	,20000
 	,40000
 	,60000
