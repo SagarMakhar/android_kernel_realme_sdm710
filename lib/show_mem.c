@@ -8,6 +8,10 @@
 #include <linux/mm.h>
 #include <linux/quicklist.h>
 #include <linux/cma.h>
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <linux/ion.h>
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 
 void show_mem(unsigned int filter)
 {
@@ -49,4 +53,7 @@ void show_mem(unsigned int filter)
 #ifdef CONFIG_MEMORY_FAILURE
 	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
 #endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	printk("%lu pages ion total used\n", ion_total()>> PAGE_SHIFT);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 }

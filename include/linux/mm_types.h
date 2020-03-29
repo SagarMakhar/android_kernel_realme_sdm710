@@ -540,7 +540,38 @@ struct mm_struct {
 	atomic_long_t hugetlb_usage;
 #endif
 	struct work_struct async_put_work;
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	struct vm_area_struct *reserve_vma;
+	struct vm_area_struct *reserve_mmap;
+	struct rb_root reserve_mm_rb;
+	unsigned long reserve_highest_vm_end;
+	unsigned long backed_vm_base;
+	unsigned long backed_vm_size;
+	int reserve_map_count;
+	int do_reserve_mmap;
+#endif
 };
+
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+#define DONE_RESERVE_MMAP 0xDE
+#define DOING_RESERVE_MMAP 0xDA
+
+static inline int check_reserve_mmap_doing(struct mm_struct *mm)
+{
+	return (mm && (mm->do_reserve_mmap == DOING_RESERVE_MMAP));
+}
+
+static inline void reserve_mmap_doing(struct mm_struct *mm)
+{
+	mm->do_reserve_mmap = DOING_RESERVE_MMAP;
+}
+
+static inline void reserve_mmap_done(struct mm_struct *mm)
+{
+	mm->do_reserve_mmap = DONE_RESERVE_MMAP;
+}
+#endif
 
 static inline void mm_init_cpumask(struct mm_struct *mm)
 {

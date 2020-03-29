@@ -55,6 +55,9 @@ enum {
 	 */
 	MIGRATE_CMA,
 #endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	MIGRATE_OPPO2,
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	MIGRATE_PCPTYPES, /* the number of types on the pcp lists */
 	MIGRATE_HIGHATOMIC = MIGRATE_PCPTYPES,
 #ifdef CONFIG_MEMORY_ISOLATION
@@ -148,6 +151,12 @@ enum zone_stat_item {
 	NUMA_OTHER,		/* allocation from other node */
 #endif
 	NR_FREE_CMA_PAGES,
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	NR_FREE_OPPO2_PAGES,
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        NR_IONCACHE_PAGES,
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	NR_VM_ZONE_STAT_ITEMS };
 
 enum node_stat_item {
@@ -359,6 +368,10 @@ struct zone {
 	unsigned long watermark[NR_WMARK];
 
 	unsigned long nr_reserved_highatomic;
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	unsigned long nr_migrate_oppo2_block;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/*
 	 * We don't know if the memory that we're going to allocate will be
