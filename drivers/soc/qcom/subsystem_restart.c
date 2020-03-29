@@ -40,6 +40,10 @@
 #include <asm/current.h>
 #include <linux/timer.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #include "peripheral-loader.h"
 
 #define DISABLE_SSR 0x9889deed
@@ -1190,6 +1194,21 @@ static void device_restart_work_hdlr(struct work_struct *work)
 							dev->desc->name);
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+int subsystem_restart_dev_level(struct subsys_device *dev,int restart_level)
+{
+	int rc = 0;
+	int restart_level_bak = dev->restart_level;
+	if(restart_level >= 0)
+		dev->restart_level = restart_level;
+
+	rc = subsystem_restart_dev(dev);
+
+	dev->restart_level = restart_level_bak;
+	return rc;
+}
+#endif
+
 int subsystem_restart_dev(struct subsys_device *dev)
 {
 	const char *name;
@@ -1741,6 +1760,13 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	subsys->dev.bus = &subsys_bus_type;
 	subsys->dev.release = subsys_device_release;
 	subsys->notif_state = -1;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	#ifdef CONFIG_OPPO_BUILD_USER
+	if (AGING != get_eng_version()) {
+		subsys->restart_level = RESET_SUBSYS_COUPLED;
+	}
+	#endif
+#endif
 	subsys->desc->sysmon_pid = -1;
 	strlcpy(subsys->desc->fw_name, desc->name,
 			sizeof(subsys->desc->fw_name));
