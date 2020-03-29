@@ -53,6 +53,12 @@ config ANDROID_LMK_NOTIFY_TRIGGER
 	a set threshold. The threshold is set by the new module parameter
 	"/sys/module/lowmemorykiller/parameters/notify_trigger".
 
+config OPPO_HANS
+        bool "HANS kernel and HANS native communication channel"
+        default n
+        ---help---
+          Key events (signal/network package/binder) report to HAS native.
+
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID
