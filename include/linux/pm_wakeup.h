@@ -59,6 +59,9 @@ struct wakeup_source {
 	struct timer_list	timer;
 	unsigned long		timer_expires;
 	ktime_t total_time;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	ktime_t total_time_backup;
+#endif
 	ktime_t max_time;
 	ktime_t last_time;
 	ktime_t start_prevent_time;
@@ -108,6 +111,11 @@ extern void __pm_relax(struct wakeup_source *ws);
 extern void pm_relax(struct device *dev);
 extern void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec);
 extern void pm_wakeup_event(struct device *dev, unsigned int msec);
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern void pm_print_active_wakeup_sources(void);
+#endif
+
 
 #else /* !CONFIG_PM_SLEEP */
 
