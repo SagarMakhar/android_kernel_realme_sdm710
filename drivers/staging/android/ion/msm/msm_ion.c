@@ -141,6 +141,21 @@ static struct notifier_block msm_ion_nb = {
 	.notifier_call = msm_ion_lowmem_notifier,
 };
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+struct ion_heap* get_system_ion_heap(enum ion_heap_type heap_type)
+{
+	int i = 0;
+	if(heaps != NULL) {
+		for(i = 0; i < num_heaps; i++)
+			if(heaps[i] && heaps[i]->type == heap_type)
+				return heaps[i];
+	}
+	return NULL;
+
+}
+EXPORT_SYMBOL(get_system_ion_heap);
+#endif
+
 struct ion_client *msm_ion_client_create(const char *name)
 {
 	/*
