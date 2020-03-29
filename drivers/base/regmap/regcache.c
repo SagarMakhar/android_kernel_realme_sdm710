@@ -497,7 +497,9 @@ EXPORT_SYMBOL_GPL(regcache_drop_region);
 void regcache_cache_only(struct regmap *map, bool enable)
 {
 	map->lock(map->lock_arg);
+	#ifndef CONFIG_PRODUCT_REALME_SDM710
 	WARN_ON(map->cache_bypass && enable);
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	map->cache_only = enable;
 	trace_regmap_cache_only(map, enable);
 	map->unlock(map->lock_arg);
