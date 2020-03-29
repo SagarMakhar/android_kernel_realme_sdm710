@@ -14,8 +14,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 int msm_show_resume_irq_mask;
+#else
+int msm_show_resume_irq_mask = 1;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 module_param_named(
 	debug_mask, msm_show_resume_irq_mask, int, S_IRUGO | S_IWUSR | S_IWGRP

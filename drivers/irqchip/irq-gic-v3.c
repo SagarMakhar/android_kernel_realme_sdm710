@@ -44,6 +44,33 @@
 
 #include "irq-gic-common.h"
 
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static unsigned int glink_adsp_sirq = 0;
+#define GLINK_SMEM_NATIVE_ADSP_IRQ_NAME   "qcom,glink-smem-native-xprt-adsp"
+static unsigned int ipa_sirq = 0;
+#define IPA_IRQ_NAME   "ipa"
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//liuhd@PSW.CN.WiFi.Hardware.1202765,2017/12/10,add for the irq of wlan when system wakeuped by wlan
+#define WLAN_WAKEUP_IRQ_NUMBER	723
+
+#define WAKEUP_SOURCE_WIFI_1ST 123
+#define WAKEUP_SOURCE_WIFI_2ND 129
+#define WAKEUP_SOURCE_WIFI_3RD 131
+#define WAKEUP_SOURCE_WIFI_4TH 134
+extern u64 wakeup_source_count_wifi ;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//Lei.Zhang@PSW.CN.WiFi.Hardware., 2019/03/02
+//Add irq of WiFi for SDM710
+static unsigned int wlan_sirq = 0;
+#define WLAN_DATA_IRQ_NAME   "WLAN_CE_2"
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
+
 #define MAX_IRQ			1020U	/* Max number of SGI+PPI+SPI */
 #define SPI_START_IRQ		32	/* SPI start irq number */
 #define GICD_ICFGR_BITS		2	/* 2 bits per irq in GICD_ICFGR */
@@ -731,6 +758,47 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 
 		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+
+                  #ifdef CONFIG_PRODUCT_REALME_SDM710
+                  //Lei.Zhang@PSW.CN.WiFi.Hardware., 2019/03/02
+                  //Add irq of WiFi for SDM710
+                  if (wlan_sirq == 0 && (name != NULL) && strncmp(name, WLAN_DATA_IRQ_NAME, strlen(WLAN_DATA_IRQ_NAME)) == 0) {
+                      wlan_sirq = irq;
+                  }
+                  #endif //CONFIG_PRODUCT_REALME_SDM710
+
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		//liuhd@PSW.CN.WiFi.Hardware.1202765,2017/12/10,add for the irq of wlan when system wakeuped by wlan
+		if((irq  >= WAKEUP_SOURCE_WIFI_1ST && irq  <= WAKEUP_SOURCE_WIFI_2ND) || 
+			(irq  >= WAKEUP_SOURCE_WIFI_3RD && irq  <= WAKEUP_SOURCE_WIFI_4TH)) {
+			wakeup_source_count_wifi++;
+		}
+		if (irq == WLAN_WAKEUP_IRQ_NUMBER)
+	    {
+		  // modem_wakeup_source = 0;
+		   //schedule_work(&wakeup_reason_work);
+		}
+		#endif //CONFIG_PRODUCT_REALME_SDM710
+		
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		//Lei.Zhang@PSW.CN.WiFi.Hardware., 2019/03/02
+		//Add irq of WiFi for SDM710
+		if (irq == wlan_sirq) {
+			wakeup_source_count_wifi++;
+		}
+		#endif
+
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (ipa_sirq == 0 && (name != NULL) && strncmp(name, IPA_IRQ_NAME, strlen(IPA_IRQ_NAME)) == 0) {
+            ipa_sirq = irq;
+        }
+		if (glink_adsp_sirq == 0 && (name != NULL) && strncmp(name, GLINK_SMEM_NATIVE_ADSP_IRQ_NAME, strlen(GLINK_SMEM_NATIVE_ADSP_IRQ_NAME)) == 0) {
+            glink_adsp_sirq = irq;
+        }
+		#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+		
+
+	
 	}
 }
 
