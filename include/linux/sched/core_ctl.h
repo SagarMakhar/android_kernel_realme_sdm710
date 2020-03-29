@@ -24,4 +24,7 @@ static inline int core_ctl_set_boost(bool boost)
 	return 0;
 }
 #endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+int hypnus_set_min_max_cpus(unsigned int index, unsigned int min, unsigned int max);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 #endif

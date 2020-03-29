@@ -62,6 +62,10 @@ extern int proc_do_large_bitmap(struct ctl_table *, int,
 extern int proc_douintvec_capacity(struct ctl_table *table, int write,
 				   void __user *buffer, size_t *lenp,
 				   loff_t *ppos);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int proc_do_print_tcpinfo(struct ctl_table *, int,
+			 void __user *, size_t *, loff_t *);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
