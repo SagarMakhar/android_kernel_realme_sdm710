@@ -33,6 +33,9 @@
 #include <soc/qcom/watchdog.h>
 #include <linux/dma-mapping.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include "oppo_watchdog_util.h"
+#endif
 #define MODULE_NAME "msm_watchdog"
 #define WDT0_ACCSCSSNBARK_INT 0
 #define TCSR_WDT_CFG	0x30
@@ -54,8 +57,11 @@
 #define MAX_CPU_SCANDUMP_SIZE	0x10100
 
 static struct msm_watchdog_data *wdog_data;
-
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 static int cpu_idle_pc_state[NR_CPUS];
+#else
+int cpu_idle_pc_state[NR_CPUS];
+#endif
 
 /*
  * user_pet_enable:
@@ -386,18 +392,37 @@ static void keep_alive_response(void *info)
  * If this function does not return, it implies one of the
  * other cpu's is not responsive.
  */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static int wdog_cpu = 0;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 static void ping_other_cpus(struct msm_watchdog_data *wdog_dd)
 {
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 	int cpu;
-
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	cpumask_t mask;
+	get_cpu_ping_mask(&mask);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 	cpumask_clear(&wdog_dd->alive_mask);
 	/* Make sure alive mask is cleared and set in order */
 	smp_mb();
+
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	for_each_cpu(wdog_cpu, &mask) {
+		smp_call_function_single(wdog_cpu, keep_alive_response,
+						 wdog_dd, 1);
+	}
+	wdog_cpu = 0;
+#else
 	for_each_cpu(cpu, cpu_online_mask) {
 		if (!cpu_idle_pc_state[cpu] && !cpu_isolated(cpu))
+
 			smp_call_function_single(cpu, keep_alive_response,
 						 wdog_dd, 1);
 	}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 }
 
 static void pet_task_wakeup(unsigned long data)
@@ -437,6 +462,9 @@ static __ref int watchdog_kthread(void *arg)
 			delay_time = msecs_to_jiffies(wdog_dd->pet_time);
 			pet_watchdog(wdog_dd);
 		}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		reset_recovery_tried();
+#endif
 		/* Check again before scheduling
 		 * Could have been changed on other cpu
 		 */
@@ -525,10 +553,27 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	nanosec_rem = do_div(wdog_dd->last_pet, 1000000000);
 	dev_info(wdog_dd->dev, "Watchdog last pet at %lu.%06lu\n",
 			(unsigned long) wdog_dd->last_pet, nanosec_rem / 1000);
-	if (wdog_dd->do_ipi_ping)
+	if (wdog_dd->do_ipi_ping) {
 		dump_cpu_alive_mask(wdog_dd);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		dump_cpu_online_mask();
+#endif
+	}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (try_to_recover_pending(wdog_dd->watchdog_task)) {
+		pet_watchdog(wdog_dd);
+		return IRQ_HANDLED;
+	}
+
+	print_smp_call_cpu();
+	dump_wdog_cpu(wdog_dd->watchdog_task);
+#endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	panic("Handle a watchdog bite! - Falling back to kernel panic!");
+#else
 	msm_trigger_wdog_bite();
 	panic("Failed to cause a watchdog bite! - Falling back to kernel panic!");
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -887,6 +932,13 @@ static int msm_watchdog_probe(struct platform_device *pdev)
 	md_entry.size = sizeof(*wdog_dd);
 	if (msm_minidump_add_region(&md_entry) < 0)
 		pr_info("Failed to add Watchdog data in Minidump\n");
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+        ret = init_oppo_watchlog();
+        if (ret < 0) {
+                pr_info("Failed to init oppo watchlog");
+        }
+#endif
 
 	return 0;
 err:

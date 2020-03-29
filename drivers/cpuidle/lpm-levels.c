@@ -1652,11 +1652,22 @@ static void register_cluster_lpm_stats(struct lpm_cluster *cl,
 		register_cluster_lpm_stats(child, cl);
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern void rpmstats_print(bool suspend);
+extern void rpm_master_stats_print(void);
+extern bool is_not_in_aosd_mode(void);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 static int lpm_suspend_prepare(void)
 {
 	suspend_in_progress = true;
 	lpm_stats_suspend_enter();
-
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	rpmstats_print(true);
+	rpm_master_stats_print();
+	if(is_not_in_aosd_mode()){
+		printk(KERN_ERR"[RM_POWER]: warning!!! system can not enter vddmin mode.\n");
+	}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	return 0;
 }
 
@@ -1664,6 +1675,9 @@ static void lpm_suspend_wake(void)
 {
 	suspend_in_progress = false;
 	lpm_stats_suspend_exit();
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	rpmstats_print(false);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 }
 
 static int lpm_suspend_enter(suspend_state_t state)
