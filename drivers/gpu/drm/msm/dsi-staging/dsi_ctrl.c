@@ -1049,6 +1049,10 @@ int dsi_message_validate_tx_mode(struct dsi_ctrl *dsi_ctrl,
 	return rc;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static struct dsi_ctrl *global_dsi_ctrl;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
 			  const struct mipi_dsi_msg *msg,
 			  u32 flags)
@@ -1123,7 +1127,17 @@ static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
 		cmd_mem.use_lpm = (msg->flags & MIPI_DSI_MSG_USE_LPM) ?
 			true : false;
 
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		global_dsi_ctrl = dsi_ctrl;
+		#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 		cmdbuf = (u8 *)(dsi_ctrl->vaddr);
+		//#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (cmdbuf == NULL) {
+			pr_err("dsi_message_tx and cmdbuf is null\n");
+			goto error;
+		}
+		//#endif
 
 		msm_gem_sync(dsi_ctrl->tx_cmd_buf);
 		for (cnt = 0; cnt < length; cnt++)
@@ -2229,7 +2243,11 @@ static void dsi_ctrl_handle_error_status(struct dsi_ctrl *dsi_ctrl,
 							0, 0, 0, 0);
 			}
 		}
+		#ifndef CONFIG_PRODUCT_REALME_SDM710
 		pr_err("tx timeout error: 0x%lx\n", error);
+		#else
+		pr_err_ratelimited("tx timeout error: 0x%lx\n", error);
+		#endif
 	}
 
 	/* DSI FIFO OVERFLOW error */

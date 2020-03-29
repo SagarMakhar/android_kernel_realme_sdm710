@@ -32,6 +32,19 @@
 #include "dsi_pwr.h"
 #include "sde_dbg.h"
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <linux/msm_drm_notify.h>
+#include <linux/notifier.h>
+extern int oppo_dsi_update_seed_mode(void);
+extern int msm_drm_notifier_call_chain(unsigned long val, void *v);
+
+extern int lcd_closebl_flag;
+
+extern int lcd_closebl_flag_fp;
+
+extern bool oppo_ffl_trigger_finish;
+#endif
+
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define INT_BASE_10 10
 #define NO_OVERRIDE -1
@@ -139,6 +152,11 @@ void dsi_rect_intersect(const struct dsi_rect *r1,
 	}
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int oppo_start_ffl_thread(void);
+extern void oppo_stop_ffl_thread(void);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 int dsi_display_set_backlight(void *display, u32 bl_lvl)
 {
 	struct dsi_display *dsi_display = display;
@@ -158,7 +176,39 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 		goto error;
 	}
 
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	pr_err("backlight level change to %d\n", bl_lvl);
+
+	if (panel->need_power_on_backlight && panel->type != EXT_BRIDGE) {
+		panel->need_power_on_backlight = false;
+		rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_ON);
+		if (rc) {
+			pr_err("[%s] failed to send DSI_CMD_POST_ON_BACKLIGHT cmds, rc=%d\n",
+			       panel->name, rc);
+			goto error;
+		}
+
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_POST_ON_BACKLIGHT);
+
+		rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_OFF);
+		if (rc) {
+			pr_err("[%s] failed to send DSI_CMD_POST_ON_BACKLIGHT cmds, rc=%d\n",
+			       panel->name, rc);
+			goto error;
+		}
+
+		oppo_start_ffl_thread();
+	}
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 	panel->bl_config.bl_level = bl_lvl;
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (oppo_ffl_trigger_finish == false)
+		goto error;
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* scale backlight */
 	bl_scale = panel->bl_config.bl_scale;
@@ -178,6 +228,15 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 		goto error;
 	}
 
+	//#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if(lcd_closebl_flag) {
+		pr_err("silence reboot we should set backlight to zero\n");
+		bl_temp = 0;
+	} else if (bl_lvl) {
+		lcd_closebl_flag_fp = 0;
+	}
+	//#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 	rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
 	if (rc)
 		pr_err("unable to set backlight\n");
@@ -195,7 +254,11 @@ error:
 	return rc;
 }
 
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 static int dsi_display_cmd_engine_enable(struct dsi_display *display)
+#else
+int dsi_display_cmd_engine_enable(struct dsi_display *display)
+#endif
 {
 	int rc = 0;
 	int i;
@@ -239,7 +302,11 @@ done:
 	return rc;
 }
 
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 static int dsi_display_cmd_engine_disable(struct dsi_display *display)
+#else
+int dsi_display_cmd_engine_disable(struct dsi_display *display)
+#endif
 {
 	int rc = 0;
 	int i;
@@ -435,7 +502,11 @@ static bool dsi_display_is_te_based_esd(struct dsi_display *display)
 }
 
 /* Allocate memory for cmd dma tx buffer */
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 static int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
+#else
+int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
+#endif
 {
 	int rc = 0, cnt = 0;
 	struct dsi_display_ctrl *display_ctrl;
@@ -971,6 +1042,22 @@ static bool dsi_display_get_cont_splash_status(struct dsi_display *display)
 	return true;
 }
 
+//#ifdef CONFIG_PRODUCT_REALME_SDM710
+/**
+*For kernel space :
+*SDE_MODE_DPMS_ON	0
+*SDE_MODE_DPMS_LP1	1
+*SDE_MODE_DPMS_LP2	2
+*SDE_MODE_DPMS_STANDBY 3
+*SDE_MODE_DPMS_SUSPEND 4
+*SDE_MODE_DPMS_OFF	5
+*
+*For user space:
+*DOZE, 1
+*DOZE_SUSPEND, 2
+*/
+
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 int dsi_display_set_power(struct drm_connector *connector,
 		int power_mode, void *disp)
 {
@@ -995,6 +1082,104 @@ int dsi_display_set_power(struct drm_connector *connector,
 	}
 	return rc;
 }
+#else /*CONFIG_PRODUCT_REALME_SDM710*/
+extern bool sde_crtc_get_fingerprint_mode(struct drm_crtc_state *crtc_state);
+extern bool sde_crtc_get_fingerprint_pressed(struct drm_crtc_state *crtc_state);
+static bool sde_connector_get_fp_mode(struct drm_connector *connector)
+{
+	if (!connector || !connector->state || !connector->state->crtc)
+		return false;
+
+	return sde_crtc_get_fingerprint_mode(connector->state->crtc->state);
+}
+
+static bool sde_connector_get_fppress_mode(struct drm_connector *connector)
+{
+	if (!connector || !connector->state || !connector->state->crtc)
+		return false;
+
+	return sde_crtc_get_fingerprint_pressed(connector->state->crtc->state);
+}
+
+int dsi_display_set_power(struct drm_connector *connector,
+		int power_mode, void *disp)
+{
+	struct dsi_display *display = disp;
+	int rc = 0;
+	struct msm_drm_notifier notifier_data;
+	int blank;
+
+	if (!display || !display->panel) {
+		pr_err("invalid display/panel\n");
+		return -EINVAL;
+	}
+
+	switch (power_mode) {
+	case SDE_MODE_DPMS_LP1:
+	case SDE_MODE_DPMS_LP2:
+		switch(get_oppo_display_scene()) {
+			break;
+		case OPPO_DISPLAY_NORMAL_SCENE:
+		case OPPO_DISPLAY_NORMAL_HBM_SCENE:
+			rc = dsi_panel_set_lp1(display->panel);
+			rc = dsi_panel_set_lp2(display->panel);
+			set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
+			break;
+		case OPPO_DISPLAY_AOD_HBM_SCENE:
+			blank = MSM_DRM_BLANK_POWERDOWN;
+			notifier_data.data = &blank;
+			notifier_data.id = 0;
+
+			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+						    &notifier_data);
+
+			/*** skip aod off if fingerprintpress exist ***/
+			if (!sde_connector_get_fppress_mode(connector)) {
+				mutex_lock(&display->panel->panel_lock);
+				rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_OFF);
+				mutex_unlock(&display->panel->panel_lock);
+				set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
+			}
+
+			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
+						    &notifier_data);
+			break;
+		case OPPO_DISPLAY_AOD_SCENE:
+		default:
+			break;
+		}
+		set_oppo_display_power_status(OPPO_DISPLAY_POWER_DOZE_SUSPEND);
+		break;
+	case SDE_MODE_DPMS_ON:
+		blank = MSM_DRM_BLANK_UNBLANK;
+		notifier_data.data = &blank;
+		notifier_data.id = 0;
+		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+					   &notifier_data);
+		if(OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
+			if (sde_connector_get_fp_mode(connector)) {
+				mutex_lock(&display->panel->panel_lock);
+				rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_ON);
+				mutex_unlock(&display->panel->panel_lock);
+				set_oppo_display_scene(OPPO_DISPLAY_AOD_HBM_SCENE);
+			} else {
+				rc = dsi_panel_set_nolp(display->panel);
+				set_oppo_display_scene(OPPO_DISPLAY_NORMAL_SCENE);
+			}
+		}
+		oppo_dsi_update_seed_mode();
+		set_oppo_display_power_status(OPPO_DISPLAY_POWER_ON);
+		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
+					    &notifier_data);
+		break;
+	case SDE_MODE_DPMS_OFF:
+		break;
+	default:
+		break;
+	}
+	return rc;
+}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 static ssize_t debugfs_dump_info_read(struct file *file,
 				      char __user *user_buf,
@@ -4762,6 +4947,17 @@ static int dsi_display_bind(struct device *dev,
 	}
 	priv = drm->dev_private;
 
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if(0 != set_oppo_display_vendor(display->name)) {
+		pr_err("maybe send a null point to oppo display manager\n");
+	}
+
+	if(is_silence_reboot()) {
+		lcd_closebl_flag = 1;
+		lcd_closebl_flag_fp = 1;
+	}
+	#endif /*CONFIG_PRODUCT_REALME_SDM710*/
+
 	mutex_lock(&display->display_lock);
 
 	rc = dsi_display_debugfs_init(display);
@@ -6646,6 +6842,9 @@ int dsi_display_enable(struct dsi_display *display)
 
 		display->panel->panel_initialized = true;
 		pr_debug("cont splash enabled, display enable not required\n");
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		set_oppo_display_power_status(OPPO_DISPLAY_POWER_ON);
+#endif
 		return 0;
 	}
 
@@ -6754,6 +6953,10 @@ int dsi_display_pre_disable(struct dsi_display *display)
 
 	mutex_lock(&display->display_lock);
 
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	display->panel->need_power_on_backlight = false;
+	oppo_stop_ffl_thread();
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	/* enable the clk vote for CMD mode panels */
 	if (display->config.panel_mode == DSI_OP_CMD_MODE)
 		dsi_display_clk_ctrl(display->dsi_clk_handle,
@@ -6771,13 +6974,24 @@ int dsi_display_pre_disable(struct dsi_display *display)
 int dsi_display_disable(struct dsi_display *display)
 {
 	int rc = 0;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	int blank;
+	struct msm_drm_notifier notifier_data;
+#endif
 
 	if (!display) {
 		pr_err("Invalid params\n");
 		return -EINVAL;
 	}
 
-	SDE_EVT32(SDE_EVTLOG_FUNC_ENTRY);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	blank = MSM_DRM_BLANK_POWERDOWN;
+	notifier_data.data = &blank;
+	notifier_data.id = 0;
+	msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
+					&notifier_data);
+#endif
+
 	mutex_lock(&display->display_lock);
 
 	rc = dsi_display_wake_up(display);
@@ -6807,6 +7021,11 @@ int dsi_display_disable(struct dsi_display *display)
 
 	mutex_unlock(&display->display_lock);
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	set_oppo_display_scene(OPPO_DISPLAY_NORMAL_SCENE);
+	msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK,
+					&notifier_data);
+#endif
 	return rc;
 }
 
@@ -6893,6 +7112,13 @@ int dsi_display_unprepare(struct dsi_display *display)
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
 	return rc;
 }
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+struct dsi_display *get_main_display(void) {
+		return primary_display;
+}
+EXPORT_SYMBOL(get_main_display);
+#endif
 
 static int __init dsi_display_register(void)
 {
