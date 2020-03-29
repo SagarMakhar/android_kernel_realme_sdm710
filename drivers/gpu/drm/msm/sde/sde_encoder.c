@@ -1668,7 +1668,11 @@ static void _sde_encoder_update_vsync_source(struct sde_encoder_virt *sde_enc,
 	struct msm_mode_info mode_info;
 	int i, rc = 0;
 
+	#ifndef CONFIG_PRODUCT_REALME_SDM710
+	if (!sde_enc || !disp_info) {
+	#else
 	if (!sde_enc || !sde_enc->cur_master || !disp_info) {
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		SDE_ERROR("invalid param sde_enc:%d or disp_info:%d\n",
 					sde_enc != NULL, disp_info != NULL);
 		return;
@@ -2998,7 +3002,8 @@ static void sde_encoder_virt_enable(struct drm_encoder *drm_enc)
 	}
 
 	if (!(msm_is_mode_seamless_vrr(cur_mode)
-			|| msm_is_mode_seamless_dms(cur_mode)))
+			|| msm_is_mode_seamless_dms(cur_mode)
+			|| msm_is_mode_seamless_dyn_clk(cur_mode)))
 		kthread_init_delayed_work(&sde_enc->delayed_off_work,
 			sde_encoder_off_work);
 
@@ -4123,6 +4128,9 @@ int sde_encoder_poll_line_counts(struct drm_encoder *drm_enc)
 	return -ETIMEDOUT;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int sde_connector_update_backlight(struct drm_connector *conn);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 		struct sde_encoder_kickoff_params *params)
 {
@@ -4158,6 +4166,10 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 				sde_enc->cur_master);
 	else
 		ln_cnt1 = -EINVAL;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if (sde_enc->cur_master)
+		sde_connector_update_backlight(sde_enc->cur_master->connector);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* prepare for next kickoff, may include waiting on previous kickoff */
 	SDE_ATRACE_BEGIN("enc_prepare_for_kickoff");
