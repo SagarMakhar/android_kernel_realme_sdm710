@@ -306,6 +306,18 @@ EXPORT_SYMBOL(sysctl_tcp_delack_seg);
 int sysctl_tcp_use_userconfig __read_mostly;
 EXPORT_SYMBOL(sysctl_tcp_use_userconfig);
 
+//#ifdef CONFIG_PRODUCT_REALME_SDM710
+//add for: [monitor tcp info]
+int sysctl_tcp_info_print __read_mostly = -1;
+EXPORT_SYMBOL(sysctl_tcp_info_print);
+//#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//add for: When find TCP SYN-ACK Timestamp value error, just do not use Timestamp
+int sysctl_tcp_ts_control[2] __read_mostly = {0,0};
+EXPORT_SYMBOL(sysctl_tcp_ts_control);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 /*
  * Current number of TCP sockets.
  */

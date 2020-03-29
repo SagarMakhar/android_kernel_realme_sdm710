@@ -146,6 +146,11 @@
 
 #include "net-sysfs.h"
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <linux/imq.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
 
@@ -2971,7 +2976,12 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	unsigned int len;
 	int rc;
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if ((!list_empty(&ptype_all) || !list_empty(&dev->ptype_all)) &&
+		!(skb->imq_flags & IMQ_F_ENQUEUE))
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
 	if (!list_empty(&ptype_all) || !list_empty(&dev->ptype_all))
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		dev_queue_xmit_nit(skb, dev);
 
 	len = skb->len;
@@ -3040,6 +3050,9 @@ out:
 	*ret = rc;
 	return skb;
 }
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+EXPORT_SYMBOL_GPL(dev_hard_start_xmit);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 struct sk_buff *dev_hard_start_xmit_list(struct sk_buff *first,
 					 struct net_device *dev,

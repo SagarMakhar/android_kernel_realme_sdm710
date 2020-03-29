@@ -120,6 +120,25 @@ struct nf_conn {
 	/* all members below initialized via memset */
 	struct { } __nfct_init_offset;
 
+	//#ifdef CONFIG_PRODUCT_REALME_SDM710
+	//Add code for appo sla function
+	u32 oppo_game_skb_len;
+	u32 oppo_game_detect_status;
+	u32 oppo_game_time_interval;
+	u32 oppo_game_up_count;
+	u32 oppo_game_down_count;
+	u32 oppo_game_lost_count;
+	u32 oppo_game_same_count;
+	u32 oppo_http_flag;
+	u32 oppo_skb_count;
+	int oppo_app_type;
+	s64 oppo_game_timestamp;
+	s64 oppo_game_last_timestamp;
+	//#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	u32 oppo_app_uid;
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	/* If we were expected by an expectation, this will be it */
 	struct nf_conn *master;
 

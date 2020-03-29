@@ -454,6 +454,7 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 {
 	const struct hh_cache *hh;
 
+ 	#ifndef CONFIG_PRODUCT_REALME_SDM710
 	if (dst->pending_confirm) {
 		unsigned long now = jiffies;
 
@@ -462,6 +463,7 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 		if (n->confirmed != now)
 			n->confirmed = now;
 	}
+ 	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	hh = &n->hh;
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)

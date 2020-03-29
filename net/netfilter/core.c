@@ -360,8 +360,18 @@ next_hook:
 		ret = NF_DROP_GETERR(verdict);
 		if (ret == 0)
 			ret = -EPERM;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE ||
+		   (verdict & NF_VERDICT_MASK) == NF_IMQ_QUEUE) {
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		ret = nf_queue(skb, state, &entry, verdict);
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (ret == -ECANCELED)
+			goto next_hook;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		if (ret == 1 && entry)
 			goto next_hook;
 	} else {
