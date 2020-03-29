@@ -1,0 +1,7 @@
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#//GaoTing.Gan@PSW.MultiMedia.MediaServer, 2019/03/07, Add for kevent feedback
+config OPPO_CRITICALLOG
+bool "config oppo kevent feedback"
+help
+    define this config to init oppo kevent feedback driver.
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
