@@ -427,6 +427,13 @@ struct sde_crtc_state {
 	bool sbuf_clk_shifted;
 
 	struct sde_crtc_respool rp;
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	bool fingerprint_mode;
+	bool fingerprint_pressed;
+	bool fingerprint_defer_sync;
+	struct sde_hw_dim_layer *fingerprint_dim_layer;
+#endif
 };
 
 enum sde_crtc_irq_state {
