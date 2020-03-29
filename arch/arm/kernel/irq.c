@@ -46,6 +46,10 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 unsigned long irq_err_count;
 
 int arch_show_interrupts(struct seq_file *p, int prec)
@@ -184,10 +188,11 @@ void migrate_irqs(void)
 		raw_spin_lock(&desc->lock);
 		affinity_broken = migrate_one_irq(desc);
 		raw_spin_unlock(&desc->lock);
-
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 		if (affinity_broken)
 			pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
 				i, smp_processor_id());
+#endif
 	}
 
 	local_irq_restore(flags);
