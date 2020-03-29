@@ -277,6 +277,9 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	inode->i_ctime = ext4_current_time(inode);
 
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_EXT4_ASYNC_DISCARD_SUPPORT)
+	ext4_update_time(EXT4_SB(inode->i_sb));
+#endif
 flags_err:
 	ext4_journal_stop(handle);
 	if (err)
@@ -746,7 +749,10 @@ resizefs_out:
 		struct fstrim_range range;
 		int ret = 0;
 		int flags  = cmd == FIDTRIM ? BLKDEV_DISCARD_SECURE : 0;
-
+#if defined(CONFIG_PRODUCT_REALME_SDM710) && defined(CONFIG_EXT4_ASYNC_DISCARD_SUPPORT)
+		if (test_opt(sb, ASYNC_DISCARD))  
+			return 0;
+#endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
