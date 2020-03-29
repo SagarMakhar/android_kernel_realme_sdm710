@@ -28,6 +28,10 @@ enum print_reason {
 	PR_OTG		= BIT(4),
 };
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define SVOOC_OTG_VOTER		"SVOOC_OTG_VOTER"
+#endif/*CONFIG_PRODUCT_REALME_SDM710*/
+
 #define DEFAULT_VOTER			"DEFAULT_VOTER"
 #define USER_VOTER			"USER_VOTER"
 #define PD_VOTER			"PD_VOTER"
@@ -71,6 +75,9 @@ enum print_reason {
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define HVDCP2_ICL_VOTER		"HVDCP2_ICL_VOTER"
 #define OV_VOTER			"OV_VOTER"
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define CCDETECT_VOTER			"CCDETECT_VOTER"
+#endif
 #define FG_ESR_VOTER			"FG_ESR_VOTER"
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 #define PD_NOT_SUPPORTED_VOTER		"PD_NOT_SUPPORTED_VOTER"
@@ -268,6 +275,9 @@ struct smb_charger {
 	struct power_supply		*bms_psy;
 	struct power_supply_desc	usb_psy_desc;
 	struct power_supply		*usb_main_psy;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct power_supply		*ac_psy;
+#endif
 	struct power_supply		*usb_port_psy;
 	enum power_supply_type		real_charger_type;
 
@@ -317,6 +327,12 @@ struct smb_charger {
 	struct work_struct	legacy_detection_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct delayed_work chg_monitor_work;
+#endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct delayed_work typec_disable_cmd_work;
+#endif
 
 	/* cached status */
 	int			voltage_min_uv;
@@ -371,6 +387,9 @@ struct smb_charger {
 	int			qc2_max_pulses;
 	bool			non_compliant_chg_detected;
 	bool			fake_usb_insertion;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	bool			fake_typec_insertion;
+#endif
 	bool			reddragon_ipc_wa;
 
 	/* extcon for VBUS / ID notification to USB for uUSB */
@@ -385,6 +404,78 @@ struct smb_charger {
 	int			pulse_cnt;
 
 	int			die_health;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	int			pre_current_ma;
+    bool		is_dpdm_on_usb;
+	struct work_struct	dpdm_set_work;
+#endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	int			ccdetect_gpio;
+	int			ccdetect_irq;
+	struct pinctrl		*ccdetect_pinctrl;
+	struct pinctrl_state	*ccdetect_active;
+	struct pinctrl_state	*ccdetect_sleep;
+	struct delayed_work	ccdetect_work;
+    struct delayed_work	divider_set_work;
+#endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+    int        charger_id_num;
+#endif
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	struct pinctrl		*chg_2uart_pinctrl;
+	struct pinctrl_state	*chg_2uart_default;
+	struct pinctrl_state	*chg_2uart_sleep;
+#endif
+};
+enum skip_reason {
+	REASON_OTG_ENABLED	= BIT(0),
+	REASON_FLASH_ENABLED	= BIT(1)
+};
+
+struct smb_dt_props {
+	int	usb_icl_ua;
+	int	dc_icl_ua;
+	int	boost_threshold_ua;
+	int	wipower_max_uw;
+	int	min_freq_khz;
+	int	max_freq_khz;
+	struct	device_node *revid_dev_node;
+	int	float_option;
+	int	chg_inhibit_thr_mv;
+	bool	no_battery;
+	bool	hvdcp_disable;
+	bool	auto_recharge_soc;
+	int	wd_bark_time;
+	bool	no_pd;
+};
+
+struct smb2 {
+	struct smb_charger	chg;
+	struct dentry		*dfs_root;
+	struct smb_dt_props	dt;
+	bool			bad_part;
+};
+
+struct qcom_pmic {
+	struct smb2 *smb2_chip;
+	struct qpnp_vadc_chip	*pm660_vadc_dev;
+	struct qpnp_vadc_chip	*pm660_usbtemp_vadc_dev;
+
+	/* for complie*/
+	bool			otg_pulse_skip_dis;
+	int			pulse_cnt;
+	unsigned int	therm_lvl_sel;
+	bool			psy_registered;
+	int			usb_online;
+	
+	/* copy from msm8976_pmic begin */
+	int			bat_charging_state;
+	bool	 		suspending;
+	bool			aicl_suspend;
+	bool			usb_hc_mode;
+	int    		usb_hc_count;
+	bool			hc_mode_flag;
+	/* copy form msm8976_pmic end */
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
@@ -554,6 +645,11 @@ int smblib_stat_sw_override_cfg(struct smb_charger *chg, bool override);
 void smblib_usb_typec_change(struct smb_charger *chg);
 int smblib_toggle_stat(struct smb_charger *chg, int reset);
 int smblib_force_ufp(struct smb_charger *chg);
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg);
+irqreturn_t oppo_ccdetect_change_handler(int irq, void *data);
+#endif
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);
