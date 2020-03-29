@@ -28,6 +28,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int lcd_closebl_flag;
+#endif
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
 #define WLED_FULL_SCALE_REG(base, n)	(WLED_IDAC_DLY_REG(base, n) + 0x01)
@@ -1794,6 +1797,12 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 		return;
 	}
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+       if(lcd_closebl_flag){
+            pr_err("%s -- MSM_BOOT_MODE__SILENCE\n",__func__);
+            value = 0;
+       }
+#endif
 	if (value > led->cdev.max_brightness)
 		value = led->cdev.max_brightness;
 

@@ -2657,6 +2657,12 @@ static int qpnp_wled_parse_dt(struct qpnp_wled *wled)
 	} else {
 		wled->num_strings = temp_val;
 		strings = prop->value;
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (strstr(saved_command_line,"2str")){
+			pr_info("bl is 2str");
+			wled->num_strings = 2;
+		}
+		#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		for (i = 0; i < wled->num_strings; ++i)
 			wled->strings[i] = strings[i];
 	}
