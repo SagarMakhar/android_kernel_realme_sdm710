@@ -6,6 +6,7 @@ else
 	KERNEL_BUILD := 0
 endif
 
+
 ifeq ($(KERNEL_BUILD), 1)
 	# These are configurable via Kconfig for kernel-based builds
 	# Need to explicitly configure for Android-based builds
@@ -33,18 +34,6 @@ ifeq ($(KERNEL_BUILD), 0)
 		include $(AUDIO_ROOT)/config/sdm450auto.conf
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
-	endif
-	ifeq ($(CONFIG_ARCH_MSM8909), y)
-		ifeq ($(CONFIG_MSM_BGCOM), y)
-			include $(AUDIO_ROOT)/config/msm8909auto.conf
-			export
-			INCS    +=  -include $(AUDIO_ROOT)/config/msm8909autoconf.h
-		endif
-		ifeq ($(CONFIG_MSM_8905), m)
-			include $(AUDIO_ROOT)/config/msm8905auto.conf
-			export
-			INCS    +=  -include $(AUDIO_ROOT)/config/msm8905autoconf.h
-		endif
 	endif
 	ifeq ($(CONFIG_ARCH_MSM8917), y)
 		include $(AUDIO_ROOT)/config/sdm450auto.conf
@@ -77,89 +66,31 @@ UAPI_INC :=	-I$(AUDIO_ROOT)/include/$(UAPI_DIR)
 COMMON_DIR :=	include
 COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 
-############ ASoC Codecs ############
-ifdef CONFIG_WCD9XXX_CODEC_CORE
-	CORE_OBJS += wcd9xxx-rst.o
-	CORE_OBJS += wcd9xxx-core-init.o
-	CORE_OBJS += wcd9xxx-core.o
-	CORE_OBJS += wcd9xxx-irq.o
-	CORE_OBJS += wcd9xxx-slimslave.o
-	CORE_OBJS += wcd9xxx-utils.o
-	CORE_OBJS += wcd9335-regmap.o
-	CORE_OBJS += wcd9335-tables.o
-	CORE_OBJS += msm-cdc-pinctrl.o
-	CORE_OBJS += msm-cdc-supply.o
-	CORE_OBJS += wcd934x/wcd934x-regmap.o
-	CORE_OBJS += wcd934x/wcd934x-tables.o
-endif
+############ dbmdx ############
 
-ifdef CONFIG_SND_SOC_WCD9XXX_V2
-	WCD9XXX_OBJS += wcd9xxx-common-v2.o
-	WCD9XXX_OBJS += wcd9xxx-resmgr-v2.o
-	WCD9XXX_OBJS += wcdcal-hwdep.o
-	WCD9XXX_OBJS += wcd9xxx-soc-init.o
-	WCD9XXX_OBJS += wcd-dsp-utils.o
-	WCD9XXX_OBJS += wcd-dsp-mgr.o
-endif
-
-ifdef CONFIG_COMMON_CLK_QCOM
-	WCD9XXX_OBJS += audio-ext-clk-up.o
-endif
-
-ifdef CONFIG_COMMON_CLK_MSM
-	WCD9XXX_OBJS += audio-ext-clk.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD9335
-	WCD9335_OBJS += wcd9335.o
-endif
-
-ifdef CONFIG_SND_SOC_WSA881X
-	WSA881X_OBJS += wsa881x.o
-	WSA881X_OBJS += wsa881x-tables.o
-	WSA881X_OBJS += wsa881x-regmap.o
-	WSA881X_OBJS += wsa881x-temp-sensor.o
-endif
-
-ifdef CONFIG_SND_SOC_WSA881X_ANALOG
-	WSA881X_ANALOG_OBJS += wsa881x-analog.o
-	WSA881X_ANALOG_OBJS += wsa881x-tables-analog.o
-	WSA881X_ANALOG_OBJS += wsa881x-regmap-analog.o
-endif
-
-ifdef CONFIG_SND_SOC_MSM_STUB
-	STUB_OBJS += msm_stub.o
-endif
-ifdef CONFIG_SND_SOC_WCD_SPI
-	SPI_OBJS += wcd-spi.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD_CPE
-	WCD_CPE_OBJS += wcd_cpe_core.o
-	WCD_CPE_OBJS += wcd_cpe_services.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD_MBHC
-	MBHC_OBJS += wcd-mbhc-v2.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD_MBHC_ADC
-	MBHC_OBJS += wcd-mbhc-adc.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD_MBHC_LEGACY
-	MBHC_OBJS += wcd-mbhc-legacy.o
-endif
-
-ifdef CONFIG_SND_SOC_MSM_HDMI_CODEC_RX
-	HDMICODEC_OBJS += msm_hdmi_codec_rx.o
+# for DSPG dbmdx chip
+ifdef CONFIG_SND_SOC_DBMDX
+	DSPG_DBMDX_OBJS += dbmdx.o
+	DSPG_DBMDX_OBJS += dbmdx-spi.o
+#	DSPG_DBMDX_OBJS += dbmdx-i2c.o
+#	DSPG_DBMDX_OBJS += dbmdx-i2c-d2.o
+#	DSPG_DBMDX_OBJS += dbmdx-i2c-d4.o
+#	DSPG_DBMDX_OBJS += dbmdx-spi-d2.o
+	DSPG_DBMDX_OBJS += dbmdx-spi-d4.o
+#	DSPG_DBMDX_OBJS += dbmdx-uart-d2.o
+#	DSPG_DBMDX_OBJS += dbmdx-uart-d4.o
+#	DSPG_DBMDX_OBJS += dbmdx-uart.o
+	DSPG_DBMDX_OBJS += dbmdx-i2s.o
+	DSPG_DBMDX_OBJS += dbmdx-customer.o
+	DSPG_DBMDX_OBJS += dbmdx-cdev.o
+	DSPG_DBMDX_OBJS += dbmdx-snd.o
+	DSPG_DBMDX_OBJS += dbmdx-snd-pcm.o
 endif
 
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
 		$(UAPI_INC)
-
 
 EXTRA_CFLAGS += $(INCS)
 
@@ -193,46 +124,14 @@ endif
 ifeq ($(KERNEL_BUILD), 0)
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/ipc/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/dsp/Module.symvers
+KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/Module.symvers
+KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/Module.symvers
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/soc/Module.symvers
 endif
 
-ifeq ($(KERNEL_BUILD), 1)
-	obj-y	+= wcd934x/
-	obj-y	+= sdm660_cdc/
-	obj-y	+= msm_sdw/
-	obj-y   += tfa98xx-v6/
-	obj-y   += dbmdx/
-endif
 # Module information used by KBuild framework
-obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd_core_dlkm.o
-wcd_core_dlkm-y := $(CORE_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD9XXX_V2) += wcd9xxx_dlkm.o
-wcd9xxx_dlkm-y := $(WCD9XXX_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD9335) += wcd9335_dlkm.o
-wcd9335_dlkm-y := $(WCD9335_OBJS)
-
-obj-$(CONFIG_SND_SOC_WSA881X) += wsa881x_dlkm.o
-wsa881x_dlkm-y := $(WSA881X_OBJS)
-
-obj-$(CONFIG_SND_SOC_WSA881X_ANALOG) += wsa881x_analog_dlkm.o
-wsa881x_analog_dlkm-y := $(WSA881X_ANALOG_OBJS)
-
-obj-$(CONFIG_SND_SOC_MSM_STUB) += stub_dlkm.o
-stub_dlkm-y := $(STUB_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD_CPE) += wcd_cpe_dlkm.o
-wcd_cpe_dlkm-y := $(WCD_CPE_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD_SPI) += wcd_spi_dlkm.o
-wcd_spi_dlkm-y := $(SPI_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD_MBHC) += mbhc_dlkm.o
-mbhc_dlkm-y := $(MBHC_OBJS)
-
-obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += hdmi_dlkm.o
-hdmi_dlkm-y := $(HDMICODEC_OBJS)
+obj-$(CONFIG_SND_SOC_DBMDX) += dspg_dbmdx_dlkm.o
+dspg_dbmdx_dlkm-y := $(DSPG_DBMDX_OBJS)
 
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
