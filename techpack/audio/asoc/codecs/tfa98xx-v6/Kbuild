@@ -64,6 +64,7 @@ UAPI_INC :=	-I$(AUDIO_ROOT)/include/$(UAPI_DIR)
 ############ COMMON ############
 COMMON_DIR :=	include
 COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
+TFA_INC    :=   -I$(AUDIO_ROOT)/asoc/codecs/tfa98xx-v6/inc
 
 ############ tfa98xx ############
 
@@ -78,7 +79,8 @@ endif
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
-		$(UAPI_INC)
+		$(UAPI_INC) \
+		$(TFA_INC)
 
 EXTRA_CFLAGS += $(INCS)
 
