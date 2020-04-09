@@ -817,7 +817,13 @@ int adm_programable_channel_mixer(int port_id, int copp_idx, int session_id,
 	}
 	ret = adm_populate_channel_weight(&adm_pspd_params[index],
 					ch_mixer, channel_index);
+    #ifndef CONFIG_PRODUCT_REALME_SDM710
+    /*
 	if (ret) {
+    */
+    #else /* CONFIG_PRODUCT_REALME_SDM710 */
+	if (!ret) {
+    #endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		pr_err("%s: fail to get channel weight with error %d\n",
 			__func__, ret);
 		goto fail_cmd;
@@ -2956,6 +2962,10 @@ static int adm_arrange_mch_ep2_map_v8(
  *
  * Returns 0 on success or error on failure
  */
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#define VOICE_TOPOLOGY_LVIMFQ_TX_DM    0x1000BFF5
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	     int perf_mode, uint16_t bit_width, int app_type, int acdb_id,
 	     int session_type)
@@ -3030,6 +3040,15 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY))
 		rate = 16000;
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if ((topology == VOICE_TOPOLOGY_LVIMFQ_TX_DM)
+		&& (rate != ADM_CMD_COPP_OPEN_SAMPLE_RATE_48K)) {
+		pr_info("%s: Change rate %d to 48K for copp 0x%x",
+			__func__, rate, topology);
+		rate = 48000;
+	}
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/*
 	 * Routing driver reuses the same adm for streams with the same
