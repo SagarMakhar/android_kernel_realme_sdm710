@@ -24,6 +24,12 @@
 
 #include <soc/qcom/subsystem_restart.h>
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+#include <asoc/oppo_mm_audio_kevent.h>
+#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #define Q6_PIL_GET_DELAY_MS 100
 #define BOOT_CMD 1
 #define IMAGE_UNLOAD_CMD 0
@@ -54,11 +60,20 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 {
 	struct platform_device *pdev = adsp_private;
 	struct adsp_loader_private *priv = NULL;
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+	unsigned char payload[64] = "";
+	#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	const char *adsp_dt = "qcom,adsp-state";
 	int rc = 0;
 	u32 adsp_state;
 	const char *img_name;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//zhye@BSP.Sensor, 2019-06-10, add for multi adsp fw load
+	const char *adsp_img;
+#endif
 
 	if (!pdev) {
 		dev_err(&pdev->dev, "%s: Platform device null\n", __func__);
@@ -127,11 +142,33 @@ load_adsp:
 				" %s: Private data get failed\n", __func__);
 				goto fail;
 			}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+//zhye@BSP.Sensor, 2019-06-10, add for multi adsp fw load
+			rc = of_property_read_string(pdev->dev.of_node,
+							"adsp-firmware",
+							&adsp_img);
+			if (rc) {
+				dev_dbg(&pdev->dev,
+					"%s: loading default image ADSP\n", __func__);
+				adsp_img = NULL;
+			}
+			else
+				dev_err(&pdev->dev, "%s: adsp-firmware = %s\n",__func__, adsp_img);
 
+			priv->pil_h = subsystem_get_with_fwname("adsp", adsp_img);
+#else//CONFIG_PRODUCT_REALME_SDM710
 			priv->pil_h = subsystem_get("adsp");
+#endif//CONFIG_PRODUCT_REALME_SDM710
 			if (IS_ERR(priv->pil_h)) {
 				dev_err(&pdev->dev, "%s: pil get failed,\n",
 					__func__);
+				#ifdef CONFIG_PRODUCT_REALME_SDM710
+				#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+				scnprintf(payload, sizeof(payload), "NULL$$EventID@@%d$$adsp_fw_get_fail",
+					OPPO_MM_AUDIO_EVENT_ID_ADSP_FW_FAIL);
+				upload_mm_audio_kevent_data(payload);
+				#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+				#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 				goto fail;
 			}
 

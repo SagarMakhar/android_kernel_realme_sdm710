@@ -22,7 +22,6 @@ include $(MY_LOCAL_PATH)/soc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/wcd934x/Android.mk
-include $(MY_LOCAL_PATH)/asoc/codecs/tfa98xx-v6/Android.mk
 endif
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DLKM_8909W)),true)
@@ -36,3 +35,19 @@ $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codec
 include $(MY_LOCAL_PATH)/asoc/codecs/sdm660_cdc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/msm_sdw/Android.mk
 endif
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+include $(MY_LOCAL_PATH)/asoc/codecs/tfa98xx/Android.mk
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+include $(MY_LOCAL_PATH)/asoc/codecs/tfa98xx-v6/Android.mk
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include $(MY_LOCAL_PATH)/asoc/codecs/ak4376/Android.mk
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include $(MY_LOCAL_PATH)/asoc/codecs/dbmdx/Android.mk
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */

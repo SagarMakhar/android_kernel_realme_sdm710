@@ -3824,6 +3824,9 @@ static int msm_routing_ec_ref_rx_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifndef CONFIG_PRODUCT_REALME_SDM710
+ * Modify for audio ec (I2S_RX -> PRI_MI2S_RX, SEC_I2S_RX -> SEC_MI2S_RX)
+ */
 static const char *const ec_ref_rx[] = { "None", "SLIM_RX", "I2S_RX",
 	"PRI_MI2S_TX", "SEC_MI2S_TX",
 	"TERT_MI2S_TX", "QUAT_MI2S_TX", "SEC_I2S_RX", "PROXY_RX",
@@ -3832,6 +3835,16 @@ static const char *const ec_ref_rx[] = { "None", "SLIM_RX", "I2S_RX",
 	"TERT_MI2S_RX", "QUAT_MI2S_RX", "TERT_TDM_TX_0", "USB_AUDIO_RX",
 	"INT0_MI2S_RX", "INT4_MI2S_RX", "INT3_MI2S_TX", "DISPLAY_PORT",
 	"PRI_TDM_RX_1"};
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
+static const char *const ec_ref_rx[] = { "None", "SLIM_RX", "PRI_MI2S_RX",
+	"PRI_MI2S_TX", "SEC_MI2S_TX",
+	"TERT_MI2S_TX", "QUAT_MI2S_TX", "SEC_MI2S_RX", "PROXY_RX",
+	"SLIM_5_RX", "SLIM_1_TX", "QUAT_TDM_TX_1",
+	"QUAT_TDM_RX_0", "QUAT_TDM_RX_1", "QUAT_TDM_RX_2", "SLIM_6_RX",
+	"TERT_MI2S_RX", "QUAT_MI2S_RX", "TERT_TDM_TX_0", "USB_AUDIO_RX",
+	"INT0_MI2S_RX", "INT4_MI2S_RX", "INT3_MI2S_TX", "DISPLAY_PORT",
+	"PRI_TDM_RX_1"};
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 static const struct soc_enum msm_route_ec_ref_rx_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ec_ref_rx), ec_ref_rx),
@@ -12346,6 +12359,11 @@ static const struct snd_kcontrol_new primary_mi2s_rx_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_PRI_MI2S_RX,
 	MSM_BACKEND_DAI_SEC_AUXPCM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	SOC_SINGLE_EXT("TERT_MI2S_TX_PRIM", MSM_BACKEND_DAI_PRI_MI2S_RX,
+	MSM_BACKEND_DAI_TERTIARY_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 static const struct snd_kcontrol_new usb_rx_port_mixer_controls[] = {
@@ -14534,6 +14552,11 @@ static const struct snd_kcontrol_new tert_mi2s_rx_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_TERTIARY_MI2S_RX,
 	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	SOC_SINGLE_EXT("INT3_MI2S_TX_TERT", MSM_BACKEND_DAI_TERTIARY_MI2S_RX,
+	MSM_BACKEND_DAI_INT3_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 static const struct snd_kcontrol_new sec_mi2s_rx_port_mixer_controls[] = {
@@ -14573,6 +14596,11 @@ static const struct snd_kcontrol_new sec_mi2s_rx_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 	MSM_BACKEND_DAI_AUXPCM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	SOC_SINGLE_EXT("INT3_MI2S_TX_SEC", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
+	MSM_BACKEND_DAI_INT3_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 };
 
 static const struct snd_kcontrol_new lsm1_mixer_controls[] = {
@@ -16214,6 +16242,11 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("QUIN_MI2S_DL_HL",
 		"Quinary MI2S_RX Hostless Playback",
 		0, 0, 0, 0),
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	SND_SOC_DAPM_AIF_IN("INT3_MI2S_DL_HL_MMI",
+		"INT3 MI2S_TX Hostless Playback",
+		0, 0, 0, 0),
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	SND_SOC_DAPM_AIF_IN("AUXPCM_DL_HL", "AUXPCM_HOSTLESS Playback",
 		0, 0, 0, 0),
@@ -17403,6 +17436,15 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_MUX("AUDIO_REF_EC_UL29 MUX", SND_SOC_NOPM, 0, 0,
 		&ext_ec_ref_mux_ul29),
 };
+
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+static const struct snd_soc_dapm_route intercon_oppo_lookback[] =
+{
+	{"TERT_MI2S_RX_DL_HL", "Switch", "INT3_MI2S_DL_HL_MMI"},
+	{"SEC_MI2S_RX_DL_HL", "Switch", "INT3_MI2S_DL_HL_MMI"},
+	{"INT0_MI2S_RX_DL_HL", "Switch", "INT3_MI2S_DL_HL_MMI"},
+};
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 static const struct snd_soc_dapm_route intercon[] = {
 	{"PRI_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
@@ -20283,6 +20325,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"PRI_MI2S_RX Port Mixer", "INTERNAL_BT_SCO_TX", "INT_BT_SCO_TX"},
 	{"PRI_MI2S_RX Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
 	{"PRI_MI2S_RX Port Mixer", "SEC_AUX_PCM_UL_TX", "SEC_AUX_PCM_TX"},
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	{"PRI_MI2S_RX Port Mixer", "TERT_MI2S_TX_PRIM", "TERT_MI2S_TX"},
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX Port Mixer"},
 
 	{"SEC_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},
@@ -20324,6 +20369,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"QUIN_MI2S_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"QUIN_MI2S_RX Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
 	{"QUIN_MI2S_RX", NULL, "QUIN_MI2S_RX Port Mixer"},
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	{"TERT_MI2S_RX Port Mixer", "INT3_MI2S_TX_TERT", "INT3_MI2S_TX"},
+	{"SEC_MI2S_RX Port Mixer", "INT3_MI2S_TX_SEC", "INT3_MI2S_TX"},
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	/* Backend Enablement */
 
@@ -21109,6 +21159,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 {
 	snd_soc_dapm_new_controls(&platform->component.dapm, msm_qdsp6_widgets,
 			   ARRAY_SIZE(msm_qdsp6_widgets));
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	snd_soc_dapm_add_routes(&platform->component.dapm, intercon_oppo_lookback,
+		ARRAY_SIZE(intercon_oppo_lookback));
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	snd_soc_dapm_add_routes(&platform->component.dapm, intercon,
 		ARRAY_SIZE(intercon));
 

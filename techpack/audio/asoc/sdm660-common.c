@@ -26,6 +26,12 @@
 #include "codecs/sdm660_cdc/msm-analog-cdc.h"
 #include "codecs/wsa881x.h"
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+#include <asoc/oppo_mm_audio_kevent.h>
+#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 #define __CHIPSET__ "SDM660 "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
 
@@ -249,7 +255,11 @@ static bool msm_swap_gnd_mic(struct snd_soc_codec *codec, bool active);
 static struct wcd_mbhc_config mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
+	#ifndef CONFIG_PRODUCT_REALME_SDM710
 	.detect_extn_cable = true,
+	#else /* CONFIG_PRODUCT_REALME_SDM710 */
+	.detect_extn_cable = false,
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
@@ -4856,6 +4866,11 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	int port_id = msm_get_port_id(rtd->dai_link->id);
 	int index = cpu_dai->id;
 	unsigned int fmt = SND_SOC_DAIFMT_CBS_CFS;
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+	unsigned char payload[256] = "";
+	#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(rtd->card);
 
@@ -4897,6 +4912,14 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				__func__, index, ret);
 			goto clk_off;
 		}
+		#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (index == SEC_MI2S) {
+			ret = snd_soc_dai_set_fmt(rtd->codec_dai, fmt|SND_SOC_DAIFMT_I2S);
+			if (ret < 0) {
+				pr_warn("%s: set codec fmt fail, ret=%d \n", __func__, ret);
+			}
+		}
+		#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		if (mi2s_intf_conf[index].msm_is_ext_mclk) {
 			mi2s_mclk[index].enable = 1;
 			pr_debug("%s: Enabling mclk, clk_freq_in_hz = %u\n",
@@ -4906,6 +4929,13 @@ int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 			if (ret < 0) {
 				pr_err("%s: afe lpass mclk failed, err:%d\n",
 					__func__, ret);
+				#ifdef CONFIG_PRODUCT_REALME_SDM710
+				#ifdef CONFIG_OPPO_KEVENT_UPLOAD
+				scnprintf(payload, sizeof(payload), "NULL$$EventID@@%d$$mi2s_set_clk_fail$$index@@%d$$path@@%d$$err@@%d",
+					OPPO_MM_AUDIO_EVENT_ID_CLK_FAIL, index, substream->stream, ret);
+				upload_mm_audio_kevent_data(payload);
+				#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
+				#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 				goto clk_off;
 			}
 		}
@@ -5656,6 +5686,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const char *usb_c_dt = "qcom,msm-mbhc-usbc-audio-supported";
 
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	pr_info("%s: *** Enter\n", __func__);
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct msm_asoc_mach_data),
 			     GFP_KERNEL);
@@ -5793,6 +5827,19 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	}
 	if (pdata->snd_card_val > INT_MAX_SND_CARD)
 		msm_ext_register_audio_notifier(pdev);
+
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	pr_info("%s: sond card register success.\n", __func__);
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
+
+	#ifdef CONFIG_PRODUCT_REALME_SDM710
+	if ((pdata->snd_card_val == INT_SND_CARD)) {
+		if (msm_cdc_pinctrl_select_sleep_state(pdata->dmic_gpio_p)) {
+			pr_err("%s: set dmic data pin high-z state error\n", __func__);
+		}
+	}
+	#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	return 0;
 err:
