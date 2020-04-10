@@ -169,8 +169,7 @@ int gf_parse_dts(struct gf_dev* gf_dev)
     gpio_direction_output(gf_dev->pwr_gpio, 0);
     pr_err("set goodix_pwr output 0 \n");
 
-#elif defined(PROJECT_19651)
-	
+#else
     if (is_project(OPPO_19651)) {
 		pr_err("begin of_get_named_gpio  goodix_vdd for 19651!\n");
         gf_dev->vdd_gpio = of_get_named_gpio(np, "goodix,goodix_vdd", 0);
@@ -240,7 +239,7 @@ void gf_cleanup(struct gf_dev *gf_dev)
         pr_info("remove pwr_gpio success\n");
     }
 
-#elif defined(PROJECT_19651)
+#else
     if (is_project(OPPO_19651)) {
 	    if (gpio_is_valid(gf_dev->vdd_gpio))
         {
@@ -269,7 +268,7 @@ int gf_power_on(struct gf_dev* gf_dev)
 #if defined(USED_GPIO_PWR)
     gpio_set_value(gf_dev->pwr_gpio, 1);
     pr_info("set pwe_gpio 1\n");
-#elif defined(PROJECT_19651)
+#else
     if (is_project(OPPO_19651)) {
         gpio_set_value(gf_dev->pwr_gpio, 1);
         msleep(5);
@@ -278,8 +277,6 @@ int gf_power_on(struct gf_dev* gf_dev)
     } else {
         rc = vreg_setup(gf_dev, "ldo5", true);
     }
-#else 
-	rc = vreg_setup(gf_dev, "ldo5", true);
 #endif
 #ifdef CONFIG_19081_PWR
     rc = vreg_setup(gf_dev, "ldo7", true);
@@ -301,7 +298,7 @@ int gf_power_off(struct gf_dev* gf_dev)
 #if defined(USED_GPIO_PWR)
     gpio_set_value(gf_dev->pwr_gpio, 0);
     pr_info("set pwe_gpio 0\n");
-#elif defined(PROJECT_19651)
+#else
     if (is_project(OPPO_19651)) {
 		gpio_set_value(gf_dev->vdd_gpio, 0);
         gpio_set_value(gf_dev->pwr_gpio, 0); 
@@ -309,8 +306,6 @@ int gf_power_off(struct gf_dev* gf_dev)
     } else {
         rc = vreg_setup(gf_dev, "ldo5", false);
     }
-#else
-	rc = vreg_setup(gf_dev, "ldo5", false);
 #endif
 #ifdef CONFIG_19081_PWR
     rc = vreg_setup(gf_dev, "ldo7", false);
