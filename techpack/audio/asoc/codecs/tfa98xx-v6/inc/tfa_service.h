@@ -952,6 +952,9 @@ enum Tfa98xx_Error tfaRunSpeakerStartup_v6(struct tfa_device *tfa, int force, in
  * @param tfa the device struct pointer
  */
 enum Tfa98xx_Error tfaRunSpeakerCalibration_v6(struct tfa_device *tfa);
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+enum Tfa98xx_Error tfaRunSpeakerCalibration_result_v6(struct tfa_device *tfa, int *result);
+#endif
 
 /**
  * startup all devices. all step until patch loading is handled

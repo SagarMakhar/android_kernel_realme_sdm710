@@ -19,7 +19,19 @@
 #include "tfa.h"
 #include "tfa98xx_tfafieldnames.h"
 #include "tfa_internal.h"
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+extern int ftm_mode;
+extern char ftm_SpeakerCalibration[17];
+extern char ftm_spk_resistance[24];
+
+#ifndef BOOT_MODE_FACTORY
+#define BOOT_MODE_FACTORY 3
+#endif
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 /* handle macro for bitfield */
 #define TFA_MK_BF(reg, pos, len) ((reg<<8)|(pos<<4)|(len-1))
@@ -67,6 +79,9 @@ void tfa9894_ops(struct tfa_device_ops *ops);
 /* calibration done executed */
 #define TFA_MTPEX_POS           TFA98XX_KEY2_PROTECTED_MTP0_MTPEX_POS /**/
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+bool g_speaker_resistance_fail = false;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 int tfa_get_calibration_info_v6(struct tfa_device *tfa, int channel)
 {
@@ -1124,7 +1139,14 @@ enum Tfa98xx_Error
 tfa_dsp_patch_v6(struct tfa_device *tfa, int patchLength,
 		 const unsigned char *patchBytes)
 {
+#ifndef CONFIG_PRODUCT_REALME_SDM710
+	 *Modify for smart mute issue.
+	 */
 	enum Tfa98xx_Error error;
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
+	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
+	int status;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	if(tfa->in_use == 0)
 		return Tfa98xx_Error_NotOpen;
 
@@ -1135,6 +1157,23 @@ tfa_dsp_patch_v6(struct tfa_device *tfa, int patchLength,
 	if (Tfa98xx_Error_Ok != error) {
 		return error;
 	}
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	tfa98xx_dsp_system_stable_v6(tfa, &status);
+	if (!status) {
+		pr_err("tfa no clock\n");
+		return Tfa98xx_Error_NoClock;
+	}
+	/******MCH_TO_TEST**************/
+	if (error == Tfa98xx_Error_Ok) {
+		pr_info("tfa cold boot patch\n");
+		error = tfaRunColdboot_v6(tfa, 1);
+		if (error) {
+			pr_err("tfa_dsp_patch DSP_not_running\n");
+			return Tfa98xx_Error_DSP_not_running;
+		}
+	}
+	/**************************/
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	error =
 	    tfa98xx_process_patch_file(tfa, patchLength - PATCH_HEADER_LENGTH,
@@ -2604,6 +2643,9 @@ enum Tfa98xx_Error tfaRunSpeakerBoost_v6(struct tfa_device *tfa, int force, int 
 {
 	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
 	int value;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	int calibrate_done = 0;
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 	if (force) {
 		err= tfaRunColdStartup_v6(tfa, profile);
@@ -2630,6 +2672,10 @@ enum Tfa98xx_Error tfaRunSpeakerBoost_v6(struct tfa_device *tfa, int force, int 
 		if ((tfa->tfa_family == 1) && (tfa->daimap == Tfa98xx_DAI_TDM))
 			tfa->sync_iv_delay = 1;
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		tfa_dev_set_state(tfa, TFA_STATE_OPERATING);
+		tfaRunSpeakerCalibration_result_v6(tfa, &calibrate_done);
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 	}
 
 	return err;
@@ -2709,6 +2755,88 @@ enum Tfa98xx_Error tfaRunSpeakerCalibration_v6(struct tfa_device *tfa)
 	return err;
 }
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+enum Tfa98xx_Error tfaRunSpeakerCalibration_result_v6(struct tfa_device *tfa, int *result)
+{
+	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
+	int calibrateDone;
+	int spkr_count = 0;
+
+	/* return if there is no audio running */
+	if ((tfa->tfa_family == 2) && TFA_GET_BF(tfa, NOCLK))
+		return Tfa98xx_Error_NoClock;
+
+	/* When MTPOTC is set (cal=once) unlock key2 */
+	if (TFA_GET_BF(tfa, MTPOTC) == 1) {
+		tfa98xx_key2_v6(tfa, 0);
+	}
+
+	/* await calibration, this should return ok */
+	err = tfaRunWaitCalibration_v6(tfa, &calibrateDone);
+	if (err == Tfa98xx_Error_Ok) {
+		err = tfa_dsp_get_calibration_impedance_v6(tfa);
+		PRINT_ASSERT(err);
+	}
+
+	if(err == Tfa98xx_Error_Ok) {
+		err = tfa_supported_speakers(tfa, &spkr_count);
+
+		if (spkr_count == 1) {
+			pr_info("%s:%d mOhms\n", __func__, tfa->mohm[0]);
+		} else {
+			pr_info("%s:Prim:%d mOhms, Sec:%d mOhms\n", __func__, tfa->mohm[0], tfa->mohm[1]);
+		}
+
+		if ((get_project() != 18085) && (get_project() != 18081)) {
+			if ((tfa->mohm[0] < 4800) || (tfa->mohm[0] > 7500)) {
+				pr_info("speaker_resistance_fail (4.8ohm - 7.5ohm)\n");
+				if (ftm_mode == BOOT_MODE_FACTORY) {
+					strcpy(ftm_spk_resistance, "speaker_resistance_fail");
+				}
+				g_speaker_resistance_fail = true;
+
+				/* When MTPOTC is set (cal=once) re-lock key2 */
+				if (TFA_GET_BF(tfa, MTPOTC) == 1) {
+					tfa98xx_key2_v6(tfa, 1);
+				}
+
+				*result = calibrateDone;
+				err = Tfa98xx_Error_Fail;
+				return err;
+			}
+		} else {
+			//6ohm - 10.5ohm
+			if ((tfa->mohm[0] < 6000) || (tfa->mohm[0] > 10500)) {
+				pr_info("speaker_resistance_fail (6ohm - 10.5ohm)\n");
+				if (ftm_mode == BOOT_MODE_FACTORY) {
+					strcpy(ftm_spk_resistance, "speaker_resistance_fail");
+				}
+				g_speaker_resistance_fail = true;
+
+				/* When MTPOTC is set (cal=once) re-lock key2 */
+				if (TFA_GET_BF(tfa, MTPOTC) == 1) {
+					tfa98xx_key2_v6(tfa, 1);
+				}
+
+				*result = calibrateDone;
+				err = Tfa98xx_Error_Fail;
+				return err;
+			}
+		}
+
+		g_speaker_resistance_fail = false;
+	}
+
+	/* When MTPOTC is set (cal=once) re-lock key2 */
+	if (TFA_GET_BF(tfa, MTPOTC) == 1) {
+		tfa98xx_key2_v6(tfa, 1);
+	}
+
+	*result = calibrateDone;
+
+	return err;
+}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 enum Tfa98xx_Error tfaRunColdboot_v6(struct tfa_device *tfa, int state)
 {
@@ -2991,6 +3119,11 @@ enum Tfa98xx_Error tfaRunWaitCalibration_v6(struct tfa_device *tfa, int *calibra
 	}
 
 	if (*calibrateDone != 1) {
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+		if (ftm_mode == BOOT_MODE_FACTORY) {
+			strcpy(ftm_SpeakerCalibration, "calibration_fail");
+		}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 		pr_err("Calibration failed! \n");
 		err = Tfa98xx_Error_Bad_Parameter;
 	} else if (tries==TFA98XX_API_WAITRESULT_NTRIES) {
@@ -3060,7 +3193,13 @@ enum tfa_error tfa_dev_start(struct tfa_device *tfa, int next_profile, int vstep
 		tfa98xx_set_osc_powerdown(tfa, 0);
 
 		/* Go to the Operating state */
+#ifndef CONFIG_PRODUCT_REALME_SDM710
+		 *every time umute PA, because PA umute need some time.
+		 */
 		tfa_dev_set_state(tfa, TFA_STATE_OPERATING | TFA_STATE_MUTE);
+#else /* CONFIG_PRODUCT_REALME_SDM710 */
+		tfa_dev_set_state(tfa, TFA_STATE_OPERATING);
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 		}
 		active_profile = tfa_dev_get_swprof(tfa);
 
@@ -3112,6 +3251,10 @@ error_exit:
 enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 {
 	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	int total_wait_count = 20;
+	int times = 0, ready = 0;
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	/* mute */
 	tfaRunMute_v6(tfa);
@@ -3127,6 +3270,24 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 	/* disable I2S output on TFA1 devices without TDM */
 	err = tfa98xx_aec_output(tfa, 0);
 
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+	/* we should ensure state machine in powedown here. */
+	while ((TFA_GET_BF(tfa, MANSTATE) != 0) && (times++ < total_wait_count)) {
+		pr_info("tfa stop wait state machine goto powerdown mode.\n");
+		err = tfa98xx_dsp_system_stable_v6(tfa, &ready);
+		if ((err != Tfa98xx_Error_Ok) || !ready) {
+			pr_warn("tfa stop: No I2S CLK\n");
+			break;
+		}
+		msleep_interruptible(5);
+	}
+
+	if (times < total_wait_count) {
+		pr_info("tfa stop: already in PowerDown\n");
+	} else {
+		pr_info("tfa stop: Not in PowerDown\n");
+	}
+#endif /*CONFIG_PRODUCT_REALME_SDM710*/
 
 	return err;
 }
@@ -3687,6 +3848,12 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state)
 
 		if (!tfa->is_probus_device)
 		{
+#ifdef CONFIG_PRODUCT_REALME_SDM710
+			err = tfa98xx_set_mtp_v6(tfa, 1, TFA98XX_KEY2_PROTECTED_MTP0_MTPOTC_MSK);
+			if (err != tfa_error_ok) {
+				return err;
+			}
+#endif /* CONFIG_PRODUCT_REALME_SDM710 */
 
 			/* Enable FAIM when clock is stable, to avoid MTP corruption */
 			err = tfa98xx_faim_protect(tfa, 1);
