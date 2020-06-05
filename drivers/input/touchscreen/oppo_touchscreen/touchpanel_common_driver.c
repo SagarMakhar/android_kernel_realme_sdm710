@@ -5581,7 +5581,7 @@ int register_common_touch_device(struct touchpanel_data *pdata)
     ts->loading_fw = false;
     ts->is_suspended = 0;
     ts->suspend_state = TP_SPEEDUP_RESUME_COMPLETE;
-    ts->gesture_enable = 0;
+    ts->gesture_enable = 1;
     ts->game_mode_control = 0;
     ts->es_enable = 0;
     ts->fd_enable = 0;
