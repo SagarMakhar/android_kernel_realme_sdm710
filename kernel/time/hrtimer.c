@@ -864,6 +864,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 			     u8 newstate, int reprogram)
 {
 	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
+        u8 state = timer->state;
 
 	if (!(timer->state & HRTIMER_STATE_ENQUEUED))
 		goto out;

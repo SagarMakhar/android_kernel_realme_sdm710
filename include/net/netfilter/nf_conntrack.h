@@ -118,7 +118,7 @@ struct nf_conn {
 	struct hlist_node	nat_bysource;
 #endif
 	/* all members below initialized via memset */
-	u8 __nfct_init_offset[0];
+	struct { } __nfct_init_offset;
 
 	//#ifdef CONFIG_PRODUCT_REALME_SDM710
 	//Add code for appo sla function
