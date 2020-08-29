@@ -652,12 +652,12 @@ static int _sde_connector_update_hbm(struct sde_connector *c_conn)
 			if (OPPO_DISPLAY_AOD_SCENE != get_oppo_display_scene() &&
 			    dsi_display->panel->bl_config.bl_level) {
 				sde_encoder_poll_line_counts(drm_enc);
-				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_ON);
-			} else {
-				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_ON);
 			}
 
+                        rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_ON);
+
 			mutex_unlock(&dsi_display->panel->panel_lock);
+
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_ON cmds, rc=%d\n", rc);
 				return rc;
@@ -671,19 +671,15 @@ static int _sde_connector_update_hbm(struct sde_connector *c_conn)
 			if(OPPO_DISPLAY_AOD_HBM_SCENE == get_oppo_display_scene()) {
 				if (OPPO_DISPLAY_POWER_DOZE_SUSPEND == get_oppo_display_power_status() ||
 				    OPPO_DISPLAY_POWER_DOZE == get_oppo_display_power_status()) {
-					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
 					set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
 				} else {
 					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_SET_NOLP);
-					/* set nolp would exit hbm, restore when panel status on hbm */
-					if (oppo_display_get_hbm_mode())
-						rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_ON);
 					set_oppo_display_scene(OPPO_DISPLAY_NORMAL_SCENE);
 				}
 			} else if (oppo_display_get_hbm_mode()) {
 				/* Do nothing to skip hbm off */
 			} else if(OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
-				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
+                                /* Do nothing */
 			} else {
 				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_OFF);
 			}

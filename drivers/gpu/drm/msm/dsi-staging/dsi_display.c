@@ -1120,6 +1120,7 @@ int dsi_display_set_power(struct drm_connector *connector,
 		switch(get_oppo_display_scene()) {
 			break;
 		case OPPO_DISPLAY_NORMAL_SCENE:
+                        break;
 		case OPPO_DISPLAY_NORMAL_HBM_SCENE:
 			rc = dsi_panel_set_lp1(display->panel);
 			rc = dsi_panel_set_lp2(display->panel);
@@ -1135,9 +1136,6 @@ int dsi_display_set_power(struct drm_connector *connector,
 
 			/*** skip aod off if fingerprintpress exist ***/
 			if (!sde_connector_get_fppress_mode(connector)) {
-				mutex_lock(&display->panel->panel_lock);
-				rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_OFF);
-				mutex_unlock(&display->panel->panel_lock);
 				set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
 			}
 
@@ -1158,9 +1156,6 @@ int dsi_display_set_power(struct drm_connector *connector,
 					   &notifier_data);
 		if(OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
 			if (sde_connector_get_fp_mode(connector)) {
-				mutex_lock(&display->panel->panel_lock);
-				rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_ON);
-				mutex_unlock(&display->panel->panel_lock);
 				set_oppo_display_scene(OPPO_DISPLAY_AOD_HBM_SCENE);
 			} else {
 				rc = dsi_panel_set_nolp(display->panel);
