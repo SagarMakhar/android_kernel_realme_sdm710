@@ -66,7 +66,7 @@
 
 #define KEY_GESTURE_W               246
 #define KEY_GESTURE_M               247
-#define KEY_DOUBLE_TAP              248
+#define KEY_DOUBLE_TAP              KEY_WAKEUP
 #define KEY_GESTURE_CIRCLE          249
 #define KEY_GESTURE_TWO_SWIPE       250
 #define KEY_GESTURE_UP_ARROW        251
