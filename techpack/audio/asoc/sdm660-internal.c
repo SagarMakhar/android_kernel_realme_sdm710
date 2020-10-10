@@ -2874,6 +2874,7 @@ static struct snd_soc_dai_link msm_int_common_be_dai[] = {
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 	},
+#ifndef CONFIG_PRODUCT_REALME_SDM710
 	/* Proxy Tx BACK END DAI Link */
 	{
 		.name = LPASS_BE_PROXY_TX,
@@ -2901,6 +2902,7 @@ static struct snd_soc_dai_link msm_int_common_be_dai[] = {
 		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
+#endif/* CONFIG_PRODUCT_REALME_SDM710*/
 	{
 		.name = LPASS_BE_USB_AUDIO_RX,
 		.stream_name = "USB Audio Playback",
