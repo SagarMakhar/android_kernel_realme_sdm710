@@ -287,9 +287,7 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-pci_device_bus_num \
 	-Wno-pci_device_reg \
 	-Wno-avoid_default_addr_size \
-	-Wno-interrupts_property \
-	-Wno-reg_format \
-	-Wno-gpios_property
+	-Wno-reg_format
 endif
 
 ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),2)
